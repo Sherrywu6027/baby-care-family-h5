@@ -2,6 +2,7 @@ var UISettings = (function () {
   function render(container) {
     Promise.all([
       DB.getBabies(),
+      DB.getMeta('currentBabyId'),
       DB.getMeta('homeButtons'),
       DB.getMeta('familyCode'),
       Sync.listPendingJoinRequests(),
@@ -9,32 +10,34 @@ var UISettings = (function () {
       DB.getMeta('authUserId')
     ]).then(function (results) {
       var babies = results[0] || [];
-      var buttons = results[1] || DEFAULT_HOME_BUTTONS;
-      var familyCode = results[2];
-      var pendingRequests = results[3] || [];
-      var memberState = results[4] || { success: true, members: [] };
-      var authUserId = results[5] || null;
+      var currentBabyId = results[1] || null;
+      var buttons = results[2] || DEFAULT_HOME_BUTTONS;
+      var familyCode = results[3];
+      var pendingRequests = results[4] || [];
+      var memberState = results[5] || { success: true, members: [] };
+      var authUserId = results[6] || null;
       var members = memberState.members || [];
       var currentMember = findCurrentMember(members, authUserId);
       var isCreator = !!(currentMember && currentMember.is_creator);
       var html = '';
 
-      html += '<div class="log-header"><h2 style="font-size:1.2rem">设置</h2></div>';
+      html += '<div class="log-header"><h2 style="font-size:1.2rem">璁剧疆</h2></div>';
 
-      html += '<div class="settings-section-title">宝宝档案</div>';
+      html += '<div class="settings-section-title">瀹濆疂妗ｆ</div>';
       html += '<div class="settings-group">';
       babies.forEach(function (baby) {
-        html += '<div class="baby-card" data-baby-id="' + baby.id + '" onclick="UISettings.editBaby(\'' + baby.id + '\')" style="cursor:pointer">';
-        html += '<div class="baby-avatar">' + escapeHtml(baby.avatar || '🍼') + '</div>';
+        var isCurrentBaby = !!(currentBabyId && baby.id === currentBabyId) || (!currentBabyId && babies[0] && babies[0].id === baby.id);
+        html += '<div class="baby-card" data-baby-id="' + baby.id + '" onclick="UISettings.editBaby(\'' + baby.id + '\')" style="cursor:pointer;' + (isCurrentBaby ? 'background:linear-gradient(180deg, rgba(99,102,241,.045), rgba(99,102,241,.015));box-shadow:inset 0 0 0 1px rgba(99,102,241,.10);' : '') + '">';
+        html += '<div class="baby-avatar">' + escapeHtml(baby.avatar || '馃嵓') + '</div>';
         html += '<div class="baby-info" style="flex:1">';
-        html += '<div class="bi-name">' + escapeHtml(baby.name || '宝宝') + '</div>';
+        html += '<div class="bi-name">' + escapeHtml(baby.name || '瀹濆疂') + (isCurrentBaby ? '<span style="display:inline-flex;align-items:center;margin-left:8px;padding:1px 7px;border-radius:999px;background:rgba(99,102,241,.08);color:rgba(79,70,229,.82);font-size:.68rem;font-weight:600;letter-spacing:.01em;vertical-align:middle">当前查看中</span>' : '') + '</div>';
         html += '<div class="bi-birthday">' + escapeHtml(formatBabySubtitle(baby)) + '</div>';
-        html += '</div><span class="si-arrow">›</span></div>';
+        html += '</div><span class="si-arrow">鈥?/span></div>';
       });
-      html += '<div class="settings-item" onclick="UISettings.addBaby()" style="cursor:pointer;justify-content:center;color:var(--primary);font-weight:600">+ 添加宝宝</div>';
+      html += '<div class="settings-item" onclick="UISettings.addBaby()" style="cursor:pointer;justify-content:center;color:var(--primary);font-weight:600">+ 娣诲姞瀹濆疂</div>';
       html += '</div>';
 
-      html += '<div class="settings-section-title">首页按钮</div>';
+      html += '<div class="settings-section-title">棣栭〉鎸夐挳</div>';
       html += '<div class="settings-group">';
       Object.keys(EVENT_TYPES).forEach(function (key) {
         var eventType = EVENT_TYPES[key];
@@ -46,34 +49,34 @@ var UISettings = (function () {
       });
       html += '</div>';
 
-      html += '<div class="settings-section-title">家庭共享</div>';
+      html += '<div class="settings-section-title">瀹跺涵鍏变韩</div>';
       html += '<div class="settings-group">';
       html += renderSyncStatusBlock();
-      html += '<div class="settings-item" onclick="UISettings.manualSync()" style="cursor:pointer;color:var(--primary);font-weight:600">立即同步</div>';
+      html += '<div class="settings-item" onclick="UISettings.manualSync()" style="cursor:pointer;color:var(--primary);font-weight:600">绔嬪嵆鍚屾</div>';
       if (familyCode) {
-        html += '<div class="settings-item"><div class="si-label">家庭码</div><div class="si-value" style="font-weight:700;letter-spacing:2px">' + escapeHtml(familyCode) + '</div></div>';
-        html += '<div class="settings-item" onclick="UISettings.copyFamilyCode()" style="cursor:pointer;color:var(--primary);font-weight:600">复制家庭码</div>';
+        html += '<div class="settings-item"><div class="si-label">瀹跺涵鐮?/div><div class="si-value" style="font-weight:700;letter-spacing:2px">' + escapeHtml(familyCode) + '</div></div>';
+        html += '<div class="settings-item" onclick="UISettings.copyFamilyCode()" style="cursor:pointer;color:var(--primary);font-weight:600">澶嶅埗瀹跺涵鐮?/div>';
       } else {
-        html += '<div class="settings-item" onclick="UISettings.createFamilyLocal()" style="cursor:pointer;color:var(--primary);font-weight:600">生成家庭码</div>';
+        html += '<div class="settings-item" onclick="UISettings.createFamilyLocal()" style="cursor:pointer;color:var(--primary);font-weight:600">鐢熸垚瀹跺涵鐮?/div>';
       }
-      html += '<div class="settings-item" onclick="UISettings.joinFamily()" style="cursor:pointer;color:var(--primary);font-weight:600">输入家庭码加入</div>';
+      html += '<div class="settings-item" onclick="UISettings.joinFamily()" style="cursor:pointer;color:var(--primary);font-weight:600">杈撳叆瀹跺涵鐮佸姞鍏?/div>';
       html += '</div>';
 
       if (familyCode) {
-        html += '<div class="settings-section-title">成员管理</div>';
+        html += '<div class="settings-section-title">鎴愬憳绠＄悊</div>';
         html += '<div class="settings-group">';
         if (!Sync.isConfigured()) {
           html += '<div class="settings-item" style="display:block">';
-          html += '<div class="si-label">当前为本地模式</div>';
-          html += '<div class="ti-detail" style="margin-top:6px">成员管理需要接入 Supabase 后使用。</div>';
+          html += '<div class="si-label">褰撳墠涓烘湰鍦版ā寮?/div>';
+          html += '<div class="ti-detail" style="margin-top:6px">鎴愬憳绠＄悊闇€瑕佹帴鍏?Supabase 鍚庝娇鐢ㄣ€?/div>';
           html += '</div>';
         } else if (!memberState.success) {
           html += '<div class="settings-item" style="display:block">';
-          html += '<div class="si-label">成员列表加载失败</div>';
+          html += '<div class="si-label">鎴愬憳鍒楄〃鍔犺浇澶辫触</div>';
           html += '<div class="ti-detail" style="margin-top:6px">' + escapeHtml(memberState.error || '请稍后重试') + '</div>';
           html += '</div>';
         } else if (members.length === 0) {
-          html += '<div class="settings-item" style="display:block"><div class="si-label">暂无成员</div></div>';
+          html += '<div class="settings-item" style="display:block"><div class="si-label">鏆傛棤鎴愬憳</div></div>';
         } else {
           members.forEach(function (member) {
             html += renderMemberItem(member, authUserId, isCreator);
@@ -82,37 +85,38 @@ var UISettings = (function () {
         html += '</div>';
 
         if (currentMember) {
-          html += '<div class="settings-section-title">家庭操作</div>';
+          html += '<div class="settings-section-title">瀹跺涵鎿嶄綔</div>';
           html += '<div class="settings-group">';
-          html += '<div class="settings-item" onclick="UISettings.openEditMember(\'' + currentMember.id + '\')" style="cursor:pointer"><div class="si-label">修改我的称呼</div><span class="si-arrow">›</span></div>';
-          html += '<div class="settings-item" onclick="UISettings.leaveFamily()" style="cursor:pointer;color:var(--danger);font-weight:700">退出当前家庭（谨慎）</div>';
+          html += '<div class="settings-item" onclick="UISettings.openEditMember(\'' + currentMember.id + '\')" style="cursor:pointer"><div class="si-label">淇敼鎴戠殑绉板懠</div><span class="si-arrow">鈥?/span></div>';
+          html += '<div class="settings-item" onclick="UISettings.leaveFamily()" style="cursor:pointer;color:var(--danger);font-weight:700">閫€鍑哄綋鍓嶅搴紙璋ㄦ厧锛?/div>';
           html += '</div>';
         }
       }
 
       if (pendingRequests.length > 0) {
-        html += '<div class="settings-section-title">加入审核</div>';
+        html += '<div class="settings-section-title">鍔犲叆瀹℃牳</div>';
         html += '<div class="settings-group">';
         pendingRequests.forEach(function (request) {
           html += '<div class="settings-item" style="display:block">';
           html += '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">';
           html += '<div>';
-          html += '<div class="si-label" style="font-weight:700">' + escapeHtml(request.display_name || request.role || '新成员') + '</div>';
-          html += '<div class="ti-detail" style="margin-top:6px">称呼：' + escapeHtml(request.display_name || request.role || '未填写') + '</div>';
-          html += '<div class="ti-detail">申请时间：' + escapeHtml(formatDateTime(request.created_at)) + '</div>';
+          html += '<div class="si-label" style="font-weight:700">' + escapeHtml(request.display_name || request.role || '???') + '</div>';
+          html += '<div class="ti-detail" style="margin-top:6px">???' + escapeHtml(request.display_name || request.role || '???') + '</div>';
+          html += '<div class="ti-detail">???' + escapeHtml(formatJoinRequesterAccount(request)) + '</div>';
+          html += '<div class="ti-detail">?????' + escapeHtml(formatDateTime(request.created_at)) + '</div>';
           html += '</div>';
           html += '<div style="display:flex;gap:8px;flex-shrink:0">';
-          html += '<button class="btn-secondary" style="padding:8px 12px" onclick="UISettings.reviewJoinRequest(\'' + request.id + '\', \'reject\')">拒绝</button>';
-          html += '<button class="btn-primary" style="padding:8px 12px" onclick="UISettings.reviewJoinRequest(\'' + request.id + '\', \'approve\')">同意</button>';
+          html += '<button class="btn-secondary" style="padding:8px 12px" onclick="UISettings.reviewJoinRequest(\'' + request.id + '\', \'reject\')">鎷掔粷</button>';
+          html += '<button class="btn-primary" style="padding:8px 12px" onclick="UISettings.reviewJoinRequest(\'' + request.id + '\', \'approve\')">鍚屾剰</button>';
           html += '</div></div></div>';
         });
         html += '</div>';
       }
 
-      html += '<div class="settings-section-title">备份</div>';
+      html += '<div class="settings-section-title">澶囦唤</div>';
       html += '<div class="settings-group">';
-      html += '<div class="settings-item" onclick="UISettings.exportData()" style="cursor:pointer"><div class="si-label">导出全部数据</div><span class="si-arrow">›</span></div>';
-      html += '<div class="settings-item" onclick="document.getElementById(\'import-file\').click()" style="cursor:pointer"><div class="si-label">导入备份</div><span class="si-arrow">›</span></div>';
+      html += '<div class="settings-item" onclick="UISettings.exportData()" style="cursor:pointer"><div class="si-label">瀵煎嚭鍏ㄩ儴鏁版嵁</div><span class="si-arrow">鈥?/span></div>';
+      html += '<div class="settings-item" onclick="document.getElementById(\'import-file\').click()" style="cursor:pointer"><div class="si-label">瀵煎叆澶囦唤</div><span class="si-arrow">鈥?/span></div>';
       html += '</div>';
       html += '<input type="file" id="import-file" accept=".json" style="display:none" onchange="UISettings.importData(event)">';
 
@@ -130,7 +134,7 @@ var UISettings = (function () {
       if (pendingJoinCode && Sync.isConfigured()) {
         return Sync.getJoinRequestStatus(pendingJoinCode).then(function (state) {
           if (state && state.success && state.status === 'approved' && state.request) {
-            container.innerHTML = '<div class="welcome-page compact"><div class="welcome-section compact"><div class="welcome-title">加入已通过</div><div class="welcome-desc">正在同步家庭数据，请稍候。</div></div></div>';
+            container.innerHTML = '<div class="welcome-page compact"><div class="welcome-section compact"><div class="welcome-title">鍔犲叆宸查€氳繃</div><div class="welcome-desc">姝ｅ湪鍚屾瀹跺涵鏁版嵁锛岃绋嶅€欍€?/div></div></div>';
             return finishApprovedJoin(state.request);
           }
           renderWelcomeContent(container, pendingJoinCode, pendingJoinRequestedAt, state);
@@ -144,7 +148,7 @@ var UISettings = (function () {
 
   function renderWelcomeContent(container, pendingJoinCode, pendingJoinRequestedAt, joinState) {
     var html = '<div class="welcome-page compact">';
-    html += '<div class="welcome-hero compact"><div class="welcome-badge">🍼 宝宝照护记录</div><h1>第 2 步：选择你要进入的家庭</h1><p>老用户会自动回到原家庭。只有当前账号还没有加入任何家庭时，才需要在这里创建或加入家庭。</p></div>';
+    html += '<div class="welcome-hero compact"><div class="welcome-badge">馃嵓 瀹濆疂鐓ф姢璁板綍</div><h1>绗?2 姝ワ細閫夋嫨浣犺杩涘叆鐨勫搴?/h1><p>鑰佺敤鎴蜂細鑷姩鍥炲埌鍘熷搴€傚彧鏈夊綋鍓嶈处鍙疯繕娌℃湁鍔犲叆浠讳綍瀹跺涵鏃讹紝鎵嶉渶瑕佸湪杩欓噷鍒涘缓鎴栧姞鍏ュ搴€?/p></div>';
 
     if (pendingJoinCode) {
       html += renderPendingJoinBlock(pendingJoinCode, pendingJoinRequestedAt, joinState);
@@ -152,37 +156,37 @@ var UISettings = (function () {
 
     html += '<div class="welcome-section compact" style="border:1px solid rgba(99,102,241,.18);background:linear-gradient(180deg, rgba(99,102,241,.08), rgba(99,102,241,.02));box-shadow:0 10px 24px rgba(99,102,241,.08)">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">';
-    html += '<div class="welcome-title" style="margin:0">方案 A：我是第一个使用的人</div>';
-    html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(99,102,241,.12);color:var(--primary-dark);font-size:.78rem;font-weight:700">创建家庭</div>';
+    html += '<div class="welcome-title" style="margin:0">鏂规 A锛氭垜鏄涓€涓娇鐢ㄧ殑浜?/div>';
+    html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(99,102,241,.12);color:var(--primary-dark);font-size:.78rem;font-weight:700">鍒涘缓瀹跺涵</div>';
     html += '</div>';
-    html += '<div class="welcome-desc">创建一个新家庭。创建完成后会生成 6 位家庭码，家人用这个家庭码申请加入。</div>';
+    html += '<div class="welcome-desc">鍒涘缓涓€涓柊瀹跺涵銆傚垱寤哄畬鎴愬悗浼氱敓鎴?6 浣嶅搴爜锛屽浜虹敤杩欎釜瀹跺涵鐮佺敵璇峰姞鍏ャ€?/div>';
     html += '<div class="form-row compact-row">';
-    html += '<div class="form-group"><label class="form-label">宝宝小名</label><input type="text" class="form-input" id="welcome-baby-name" placeholder="如：豆豆"></div>';
-    html += '<div class="form-group"><label class="form-label">出生日期</label><input type="date" class="form-input" id="welcome-baby-birthday"></div>';
+    html += '<div class="form-group"><label class="form-label">瀹濆疂灏忓悕</label><input type="text" class="form-input" id="welcome-baby-name" placeholder="濡傦細璞嗚眴"><div class="field-error" id="welcome-baby-name-error" aria-live="polite"></div></div>';
+    html += '<div class="form-group"><label class="form-label">鍑虹敓鏃ユ湡</label><input type="date" class="form-input" id="welcome-baby-birthday"><div class="field-error" id="welcome-baby-birthday-error" aria-live="polite"></div></div>';
     html += '</div>';
-    html += '<div class="form-group compact-group"><label class="form-label">你的称呼</label>';
+    html += '<div class="form-group compact-group"><label class="form-label">浣犵殑绉板懠</label>';
     html += renderRoleChips('UISettings.pickCreateRole');
-    html += '<input type="text" class="form-input" id="welcome-create-role" placeholder="也可自定义，如：外婆" oninput="UISettings.inputCreateRole(this)"></div>';
-    html += '<button class="btn-primary" onclick="UISettings.createFamilyFromWelcome()">创建新家庭</button>';
-    html += '<div class="welcome-desc" style="margin-top:10px">适用场景：你是宝宝记录的发起人，还没有任何家人先建过家庭。</div>';
+    html += '<input type="text" class="form-input" id="welcome-create-role" placeholder="涔熷彲鑷畾涔夛紝濡傦細澶栧﹩" oninput="UISettings.inputCreateRole(this)"><div class="field-error" id="welcome-create-role-error" aria-live="polite"></div></div>';
+    html += '<button class="btn-primary" onclick="UISettings.createFamilyFromWelcome()">鍒涘缓鏂板搴?/button>';
+    html += '<div class="welcome-desc" style="margin-top:10px">閫傜敤鍦烘櫙锛氫綘鏄疂瀹濊褰曠殑鍙戣捣浜猴紝杩樻病鏈変换浣曞浜哄厛寤鸿繃瀹跺涵銆?/div>';
     html += '</div>';
 
-    html += '<div class="welcome-divider compact"><span>如果不是你先开始</span></div>';
+    html += '<div class="welcome-divider compact"><span>濡傛灉涓嶆槸浣犲厛寮€濮?/span></div>';
 
     html += '<div class="welcome-section compact" style="border:1px solid rgba(16,185,129,.20);background:linear-gradient(180deg, rgba(16,185,129,.08), rgba(16,185,129,.02));box-shadow:0 10px 24px rgba(16,185,129,.07)">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">';
-    html += '<div class="welcome-title" style="margin:0">方案 B：家人已经创建了家庭</div>';
-    html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(16,185,129,.12);color:#047857;font-size:.78rem;font-weight:700">加入家庭</div>';
+    html += '<div class="welcome-title" style="margin:0">鏂规 B锛氬浜哄凡缁忓垱寤轰簡瀹跺涵</div>';
+    html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(16,185,129,.12);color:#047857;font-size:.78rem;font-weight:700">鍔犲叆瀹跺涵</div>';
     html += '</div>';
-    html += '<div class="welcome-desc">输入家人发给你的 6 位家庭码。提交后会进入待审核，通过后你就能看到同一份家庭记录。</div>';
+    html += '<div class="welcome-desc">杈撳叆瀹朵汉鍙戠粰浣犵殑 6 浣嶅搴爜銆傛彁浜ゅ悗浼氳繘鍏ュ緟瀹℃牳锛岄€氳繃鍚庝綘灏辫兘鐪嬪埌鍚屼竴浠藉搴褰曘€?/div>';
     html += '<div class="form-row compact-row join-row">';
-    html += '<div class="form-group"><label class="form-label">6 位家庭码</label><input type="text" class="form-input welcome-code" id="welcome-join-code" maxlength="6" placeholder="如：123456" value="' + escapeAttr(pendingJoinCode || '') + '"></div>';
-    html += '<div class="form-group join-btn-wrap"><label class="form-label">&nbsp;</label><button class="btn-primary join-btn" onclick="UISettings.joinFamilyFromWelcome()">申请加入家庭</button></div>';
+    html += '<div class="form-group"><label class="form-label">6 浣嶅搴爜</label><input type="text" class="form-input welcome-code" id="welcome-join-code" maxlength="6" placeholder="濡傦細123456" value="' + escapeAttr(pendingJoinCode || '') + '"><div class="field-error" id="welcome-join-code-error" aria-live="polite"></div></div>';
+    html += '<div class="form-group join-btn-wrap"><label class="form-label">&nbsp;</label><button class="btn-primary join-btn" onclick="UISettings.joinFamilyFromWelcome()">鐢宠鍔犲叆瀹跺涵</button></div>';
     html += '</div>';
-    html += '<div class="form-group compact-group"><label class="form-label">你的称呼</label>';
+    html += '<div class="form-group compact-group"><label class="form-label">浣犵殑绉板懠</label>';
     html += renderRoleChips('UISettings.pickRole');
-    html += '<input type="text" class="form-input" id="welcome-role" placeholder="也可自定义，如：奶奶" oninput="UISettings.inputJoinRole(this)"></div>';
-    html += '<div class="welcome-desc" style="margin-top:10px">适用场景：另一位家人已经开始记录，你现在只是加入同一个家庭。</div>';
+    html += '<input type="text" class="form-input" id="welcome-role" placeholder="涔熷彲鑷畾涔夛紝濡傦細濂跺ザ" oninput="UISettings.inputJoinRole(this)"><div class="field-error" id="welcome-role-error" aria-live="polite"></div></div>';
+    html += '<div class="welcome-desc" style="margin-top:10px">閫傜敤鍦烘櫙锛氬彟涓€浣嶅浜哄凡缁忓紑濮嬭褰曪紝浣犵幇鍦ㄥ彧鏄姞鍏ュ悓涓€涓搴€?/div>';
     html += '<div id="welcome-join-error"></div>';
     html += '</div>';
 
@@ -192,30 +196,30 @@ var UISettings = (function () {
 
   function renderPendingJoinBlock(pendingJoinCode, pendingJoinRequestedAt, joinState) {
     var status = joinState && joinState.status ? joinState.status : 'pending';
-    var title = '你的加入申请正在等待处理';
-    var detail = '家庭码 ' + escapeHtml(pendingJoinCode) + ' 已提交，等待家庭创建者审核。审核通过后，你会自动进入这个家庭。';
+    var title = '浣犵殑鍔犲叆鐢宠姝ｅ湪绛夊緟澶勭悊';
+    var detail = '??? ' + escapeHtml(pendingJoinCode) + ' ???????????????????????????????';
     var accent = 'rgba(245,158,11,.16)';
     var accentText = '#b45309';
     var border = 'rgba(245,158,11,.24)';
     var shadow = 'rgba(245,158,11,.08)';
 
     if (status === 'rejected') {
-      title = '这次加入申请未通过';
-      detail = '你可以先和家人确认家庭码，再重新提交申请。';
+      title = '杩欐鍔犲叆鐢宠鏈€氳繃';
+      detail = '?????????????????????';
       accent = 'rgba(239,68,68,.14)';
       accentText = '#b91c1c';
       border = 'rgba(239,68,68,.22)';
       shadow = 'rgba(239,68,68,.08)';
     } else if (status === 'approved') {
-      title = '加入申请已通过';
-      detail = '正在为你同步家庭数据。';
+      title = '鍔犲叆鐢宠宸查€氳繃';
+      detail = '???????????';
       accent = 'rgba(16,185,129,.14)';
       accentText = '#047857';
       border = 'rgba(16,185,129,.22)';
       shadow = 'rgba(16,185,129,.08)';
     } else if (status === 'none') {
-      title = '没有找到申请记录';
-      detail = '可能还没有提交成功，你可以重新提交申请。';
+      title = '娌℃湁鎵惧埌鐢宠璁板綍';
+      detail = '????????????????????';
       accent = 'rgba(107,114,128,.14)';
       accentText = '#374151';
       border = 'rgba(107,114,128,.20)';
@@ -229,26 +233,26 @@ var UISettings = (function () {
     html += '</div>';
     html += '<div class="welcome-desc">' + detail + '</div>';
     if (pendingJoinRequestedAt) {
-      html += '<div class="welcome-desc" style="margin-top:8px">申请时间：' + escapeHtml(formatDateTime(pendingJoinRequestedAt)) + '</div>';
+      html += '<div class="welcome-desc" style="margin-top:8px">?????' + escapeHtml(formatDateTime(pendingJoinRequestedAt)) + '</div>';
     }
     html += '<div style="display:flex;gap:10px;margin-top:12px">';
-    html += '<button class="btn-secondary" onclick="UISettings.checkJoinRequestStatus()">刷新申请状态</button>';
+    html += '<button class="btn-secondary" onclick="UISettings.checkJoinRequestStatus()">鍒锋柊鐢宠鐘舵€?/button>';
     if (status === 'rejected' || status === 'none') {
-      html += '<button class="btn-secondary" onclick="UISettings.clearPendingJoinRequest()">清除记录</button>';
+      html += '<button class="btn-secondary" onclick="UISettings.clearPendingJoinRequest()">娓呴櫎璁板綍</button>';
     }
     html += '</div></div>';
     return html;
   }
 
   function getJoinStatusLabel(status) {
-    if (status === 'approved') return '已通过';
-    if (status === 'rejected') return '未通过';
-    if (status === 'none') return '需重试';
-    return '待审核';
+    if (status === 'approved') return '宸查€氳繃';
+    if (status === 'rejected') return '鏈€氳繃';
+    if (status === 'none') return '闇€閲嶈瘯';
+    return '???';
   }
 
   function renderRoleChips(handlerName) {
-    var roles = ['妈妈', '爸爸', '奶奶', '爷爷', '月嫂'];
+    var roles = ['濡堝', '鐖哥埜', '濂跺ザ', '鐖风埛', '鏈堝珎'];
     var html = '<div class="role-chips compact">';
     roles.forEach(function (role) {
       html += '<button type="button" class="role-chip" onclick="' + handlerName + '(\'' + role + '\', this)">' + role + '</button>';
@@ -257,27 +261,36 @@ var UISettings = (function () {
     return html;
   }
 
+  function formatJoinRequesterAccount(request) {
+    var email = request && request.requester_email ? String(request.requester_email).trim() : '';
+    if (email) return email;
+    var account = request && request.requester_user ? String(request.requester_user) : '';
+    if (!account) return '未提供';
+    if (account.length <= 12) return account;
+    return account.slice(0, 8) + '...' + account.slice(-6);
+  }
+
   function renderMemberItem(member, authUserId, isCreator) {
-    var name = member.display_name || member.role || '成员';
+    var name = member.display_name || member.role || '鎴愬憳';
     var creatorTag = member.is_creator
-      ? '<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:var(--primary-dark);font-size:.72rem;font-weight:700">创建者</span>'
+      ? '<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:var(--primary-dark);font-size:.72rem;font-weight:700">鍒涘缓鑰?/span>'
       : '';
     var canEdit = !!(isCreator || (authUserId && member.auth_user === authUserId));
     var html = '<div class="settings-item" style="display:block">';
     html += '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">';
     html += '<div style="flex:1">';
     html += '<div class="si-label" style="font-weight:700">' + escapeHtml(name) + creatorTag + '</div>';
-    html += '<div class="ti-detail" style="margin-top:6px">称呼：' + escapeHtml(name) + '</div>';
-    html += '<div class="ti-detail">加入时间：' + escapeHtml(formatDateTime(member.created_at)) + '</div>';
+    html += '<div class="ti-detail" style="margin-top:6px">???' + escapeHtml(name) + '</div>';
+    html += '<div class="ti-detail">?????' + escapeHtml(formatDateTime(member.created_at)) + '</div>';
     if (canEdit) {
-      html += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.openEditMember(\'' + member.id + '\')">修改称呼</button>';
+      html += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.openEditMember(\'' + member.id + '\')">淇敼绉板懠</button>';
     }
     if (isCreator && !member.is_creator) {
-      html += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.transferCreator(\'' + member.id + '\')">转让创建者</button>';
-      html += '<button class="btn-danger" style="margin-top:8px;padding:0;text-align:right" onclick="UISettings.removeMember(\'' + member.id + '\')">移除成员</button>';
+      html += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.transferCreator(\'' + member.id + '\')">杞鍒涘缓鑰?/button>';
+      html += '<button class="btn-danger" style="margin-top:8px;padding:0;text-align:right" onclick="UISettings.removeMember(\'' + member.id + '\')">绉婚櫎鎴愬憳</button>';
     }
     if (member.is_creator) {
-      html += '<div class="ti-detail" style="margin-top:6px">创建者不可移除，需先转让。</div>';
+      html += '<div class="ti-detail" style="margin-top:6px">鍒涘缓鑰呬笉鍙Щ闄わ紝闇€鍏堣浆璁┿€?/div>';
     }
     html += '</div></div></div>';
     return html;
@@ -285,31 +298,31 @@ var UISettings = (function () {
 
   function renderSyncStatusBlock() {
     var status = Sync.getSyncStatus();
-    var modeLabel = '本地模式';
-    var detail = '当前未连接 Supabase，数据只保存在本机。';
+    var modeLabel = '鏈湴妯″紡';
+    var detail = '????? Supabase??????????';
 
     if (status.mode === 'cloud-ready') {
-      modeLabel = status.syncing ? '正在同步' : '云端已连接';
-      detail = '已连接 Supabase，可创建家庭、提交加入申请，并在多设备间同步。';
+      modeLabel = status.syncing ? '????' : '?????';
+      detail = '??? Supabase????????????????????????';
     } else if (status.mode === 'auth-required') {
-      modeLabel = '云端已配置，等待登录';
-      detail = '当前项目已经连接 Supabase，但你还没有完成登录。登录后才能恢复家庭、提交加入申请和同步数据。';
+      modeLabel = '浜戠宸查厤缃紝绛夊緟鐧诲綍';
+      detail = '???????? Supabase?????????????????????????????????';
     } else if (status.mode === 'cloud-pending') {
-      modeLabel = '云端待就绪';
+      modeLabel = '?????';
       detail = status.lastError
-        ? ('已配置 Supabase，但当前连接失败：' + status.lastError)
-        : '已检测到 Supabase 配置，正在等待连接。';
+        ? ('??? Supabase?????????' + status.lastError)
+        : '???? Supabase ??????????';
     }
 
     if (status.lastSync) {
-      detail += ' 最近同步：' + new Date(status.lastSync).toLocaleString('zh-CN') + '。';
+      detail += ' ?????' + new Date(status.lastSync).toLocaleString('zh-CN') + '?';
     }
     if (status.lastError && status.mode === 'cloud-ready') {
-      detail += ' 最近错误：' + status.lastError + '。';
+      detail += ' ?????' + status.lastError + '?';
     }
 
     return '<div class="settings-item" style="display:block">'
-      + '<div class="si-label" style="margin-bottom:6px">同步状态</div>'
+      + '<div class="si-label" style="margin-bottom:6px">鍚屾鐘舵€?/div>'
       + '<div class="si-value" style="font-weight:700;color:var(--text)">' + escapeHtml(modeLabel) + '</div>'
       + '<div class="ti-detail" style="margin-top:6px">' + escapeHtml(detail) + '</div>'
       + '</div>';
@@ -350,11 +363,11 @@ var UISettings = (function () {
     var birthday = getInputValue('welcome-baby-birthday');
     var role = getInputValue('welcome-create-role').trim();
     if (!name || !birthday) {
-      App.toast('请填写宝宝小名和出生日期');
+      App.toast('璇峰～鍐欏疂瀹濆皬鍚嶅拰鍑虹敓鏃ユ湡');
       return;
     }
     if (!role) {
-      App.toast('请填写你的称呼');
+      App.toast('???????');
       return;
     }
 
@@ -364,7 +377,7 @@ var UISettings = (function () {
       return createFamilyLocal(true);
     }).then(function (code) {
       if (!code) return null;
-      return upsertBaby({ name: name, birthday: birthday, avatar: '🍼' }).then(function (baby) {
+      return upsertBaby({ name: name, birthday: birthday, avatar: '馃嵓' }).then(function (baby) {
         return DB.setMeta('currentBabyId', baby.id).then(function () {
           return DB.setMeta('onboardingCompleted', true);
         }).then(function () {
@@ -383,11 +396,11 @@ var UISettings = (function () {
     var code = getInputValue('welcome-join-code').trim();
     var role = getInputValue('welcome-role').trim();
     if (!/^\d{6}$/.test(code)) {
-      renderJoinError('请输入 6 位家庭码');
+      renderJoinError('璇疯緭鍏?6 浣嶅搴爜');
       return;
     }
     if (!role) {
-      renderJoinError('请填写你的称呼');
+      renderJoinError('???????');
       return;
     }
 
@@ -397,7 +410,7 @@ var UISettings = (function () {
       return Sync.joinFamily(code, { role: role, displayName: role });
     }).then(function (result) {
       if (!result || !result.success) {
-        renderJoinError(result && result.error ? result.error : '提交申请失败，请重试');
+        renderJoinError(result && result.error ? result.error : '鎻愪氦鐢宠澶辫触锛岃閲嶈瘯');
         return null;
       }
       if (result.already_member) {
@@ -405,11 +418,11 @@ var UISettings = (function () {
           if (state && state.request && state.request.status === 'approved') {
             return finishApprovedJoin(state.request);
           }
-          App.toast('你已经在这个家庭中');
+          App.toast('?????????');
           return null;
         });
       }
-      App.toast(result.local_placeholder ? '本地演示模式下已加入' : '申请已提交，等待家庭创建者审核');
+      App.toast(result.local_placeholder ? '??????????' : '???????????????');
       App.renderPage();
       return null;
     });
@@ -418,7 +431,7 @@ var UISettings = (function () {
   function finishApprovedJoin(request) {
     return Sync.activateApprovedJoin(request).then(function (result) {
       if (!result || !result.success) {
-        App.toast(result && result.error ? result.error : '加入家庭失败');
+        App.toast(result && result.error ? result.error : '鍔犲叆瀹跺涵澶辫触');
         return null;
       }
       return Promise.all([
@@ -437,7 +450,7 @@ var UISettings = (function () {
         }).then(function () {
           App.navigate('today');
           App.renderPage();
-          App.toast('已加入家庭');
+          App.toast('?????');
         });
       });
     });
@@ -446,7 +459,7 @@ var UISettings = (function () {
   function checkJoinRequestStatus() {
     DB.getMeta('pendingJoinCode').then(function (code) {
       if (!code) {
-        App.toast('没有待查询的申请');
+        App.toast('娌℃湁寰呮煡璇㈢殑鐢宠');
         return null;
       }
       return Sync.getJoinRequestStatus(code).then(function (state) {
@@ -454,8 +467,8 @@ var UISettings = (function () {
           return finishApprovedJoin(state.request);
         }
         App.renderPage();
-        if (state && state.status === 'pending') App.toast('申请仍在等待审核');
-        else if (state && state.status === 'rejected') App.toast('申请已被拒绝');
+        if (state && state.status === 'pending') App.toast('鐢宠浠嶅湪绛夊緟瀹℃牳');
+        else if (state && state.status === 'rejected') App.toast('鐢宠宸茶鎷掔粷');
         return null;
       });
     });
@@ -482,13 +495,13 @@ var UISettings = (function () {
   }
 
   function removeMember(memberId) {
-    if (!confirm('确认移除这个成员吗？移除后对方将无法继续访问当前家庭。')) return;
+    if (!confirm('???????????????????????????')) return;
     Sync.removeFamilyMember(memberId).then(function (result) {
       if (!result || !result.success) {
-        App.toast(result && result.error ? result.error : '移除失败');
+        App.toast(result && result.error ? result.error : '绉婚櫎澶辫触');
         return;
       }
-      App.toast('成员已移除');
+      App.toast('?????');
       App.renderPage();
     });
   }
@@ -498,13 +511,13 @@ var UISettings = (function () {
       var members = result && result.members ? result.members : [];
       var member = members.filter(function (item) { return item.id === memberId; })[0] || null;
       if (!member) {
-        App.toast('未找到成员');
+        App.toast('?????');
         return;
       }
       var html = '<div class="modal-overlay" onclick="if(event.target===this)UIToday.closeModal()"><div class="modal-sheet">';
-      html += '<div class="modal-handle"></div><div class="modal-title">修改成员称呼</div>';
-      html += '<div class="form-group"><label class="form-label">称呼</label><input type="text" class="form-input" id="member-display-name" value="' + escapeAttr(member.display_name || member.role || '') + '" placeholder="如：奶奶"></div>';
-      html += '<button class="btn-primary" onclick="UISettings.saveMemberProfile(\'' + member.id + '\', \'' + escapeJs(member.auth_user || '') + '\')">保存</button>';
+      html += '<div class="modal-handle"></div><div class="modal-title">淇敼鎴愬憳绉板懠</div>';
+      html += '<div class="form-group"><label class="form-label">绉板懠</label><input type="text" class="form-input" id="member-display-name" value="' + escapeAttr(member.display_name || member.role || '') + '" placeholder="濡傦細濂跺ザ"><div class="field-error" id="member-display-name-error" aria-live="polite"></div></div>';
+      html += '<button class="btn-primary" onclick="UISettings.saveMemberProfile(\'' + member.id + '\', \'' + escapeJs(member.auth_user || '') + '\')">淇濆瓨</button>';
       html += '</div></div>';
       document.body.insertAdjacentHTML('beforeend', html);
     });
@@ -513,7 +526,7 @@ var UISettings = (function () {
   function saveMemberProfile(memberId, memberAuthUser) {
     var title = getInputValue('member-display-name').trim();
     if (!title) {
-      App.toast('请填写称呼');
+      App.toast('?????');
       return;
     }
     Sync.updateFamilyMember(memberId, {
@@ -521,7 +534,7 @@ var UISettings = (function () {
       role: title
     }).then(function (result) {
       if (!result || !result.success) {
-        App.toast(result && result.error ? result.error : '修改失败');
+        App.toast(result && result.error ? result.error : '淇敼澶辫触');
         return;
       }
       return DB.getMeta('authUserId').then(function (authUserId) {
@@ -533,29 +546,29 @@ var UISettings = (function () {
         return null;
       }).then(function () {
         UIToday.closeModal();
-        App.toast('修改成功');
+        App.toast('淇敼鎴愬姛');
         App.renderPage();
       });
     });
   }
 
   function transferCreator(memberId) {
-    if (!confirm('确认把家庭创建者身份转让给这个成员吗？')) return;
+    if (!confirm('纭鎶婂搴垱寤鸿€呰韩浠借浆璁╃粰杩欎釜鎴愬憳鍚楋紵')) return;
     Sync.transferFamilyCreator(memberId).then(function (result) {
       if (!result || !result.success) {
-        App.toast(result && result.error ? result.error : '转让失败');
+        App.toast(result && result.error ? result.error : '杞澶辫触');
         return;
       }
-      App.toast('已转让创建者');
+      App.toast('??????');
       App.renderPage();
     });
   }
 
   function leaveFamily() {
-    if (!confirm('确认退出当前家庭吗？退出后你将无法继续同步这个家庭的数据。')) return;
+    if (!confirm('?????????????????????????????')) return;
     Sync.leaveFamily().then(function (result) {
       if (!result || !result.success) {
-        App.toast(result && result.error ? result.error : '退出家庭失败');
+        App.toast(result && result.error ? result.error : '??????');
         return;
       }
       return DB.setMeta('familyId', null).then(function () {
@@ -563,7 +576,7 @@ var UISettings = (function () {
       }).then(function () {
         return DB.setLastSyncAt(null);
       }).then(function () {
-        App.toast('已退出当前家庭');
+        App.toast('???????');
         App.navigate('welcome');
         App.renderPage();
       });
@@ -575,8 +588,8 @@ var UISettings = (function () {
     if (!el) return;
     var html = '<div class="welcome-error">' + escapeHtml(msg) + '</div>';
     html += '<div class="welcome-error-actions">';
-    html += '<button class="btn-secondary" onclick="UISettings.clearJoinError()">重新输入</button>';
-    html += '<button class="btn-secondary" onclick="UISettings.focusCreateFamily()">创建新家庭</button>';
+    html += '<button class="btn-secondary" onclick="UISettings.clearJoinError()">閲嶆柊杈撳叆</button>';
+    html += '<button class="btn-secondary" onclick="UISettings.focusCreateFamily()">鍒涘缓鏂板搴?/button>';
     html += '</div>';
     el.innerHTML = html;
   }
@@ -596,10 +609,10 @@ var UISettings = (function () {
 
   function openBabyCreateAfterJoin() {
     var html = '<div class="modal-overlay" onclick="if(event.target===this)UIToday.closeModal()"><div class="modal-sheet">';
-    html += '<div class="modal-handle"></div><div class="modal-title">这个家庭还没有宝宝</div>';
-    html += '<div class="form-group"><label class="form-label">宝宝小名</label><input type="text" class="form-input" id="join-baby-name" placeholder="如：豆豆"></div>';
-    html += '<div class="form-group"><label class="form-label">出生日期</label><input type="date" class="form-input" id="join-baby-birthday"></div>';
-    html += '<button class="btn-primary" onclick="UISettings.finishJoinCreateBaby()">保存并进入今日页</button>';
+    html += '<div class="modal-handle"></div><div class="modal-title">杩欎釜瀹跺涵杩樻病鏈夊疂瀹?/div>';
+    html += '<div class="form-group"><label class="form-label">瀹濆疂灏忓悕</label><input type="text" class="form-input" id="join-baby-name" placeholder="濡傦細璞嗚眴"><div class="field-error" id="join-baby-name-error" aria-live="polite"></div></div>';
+    html += '<div class="form-group"><label class="form-label">鍑虹敓鏃ユ湡</label><input type="date" class="form-input" id="join-baby-birthday"><div class="field-error" id="join-baby-birthday-error" aria-live="polite"></div></div>';
+    html += '<button class="btn-primary" onclick="UISettings.finishJoinCreateBaby()">淇濆瓨骞惰繘鍏ヤ粖鏃ラ〉</button>';
     html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
   }
@@ -608,10 +621,10 @@ var UISettings = (function () {
     var name = getInputValue('join-baby-name').trim();
     var birthday = getInputValue('join-baby-birthday');
     if (!name || !birthday) {
-      App.toast('请填写宝宝小名和出生日期');
+      App.toast('璇峰～鍐欏疂瀹濆皬鍚嶅拰鍑虹敓鏃ユ湡');
       return;
     }
-    upsertBaby({ name: name, birthday: birthday, avatar: '🍼' }).then(function (baby) {
+    upsertBaby({ name: name, birthday: birthday, avatar: '馃嵓' }).then(function (baby) {
       return DB.setMeta('currentBabyId', baby.id).then(function () {
         return DB.setMeta('onboardingCompleted', true);
       });
@@ -621,7 +634,7 @@ var UISettings = (function () {
       UIToday.closeModal();
       App.navigate('today');
       App.renderPage();
-      App.toast('已进入今日页');
+      App.toast('宸茶繘鍏ヤ粖鏃ラ〉');
     });
   }
 
@@ -630,14 +643,14 @@ var UISettings = (function () {
     html += '<div class="modal-handle"></div>';
     html += '<div style="border:1px solid rgba(99,102,241,.18);background:linear-gradient(180deg, rgba(99,102,241,.08), rgba(99,102,241,.02));box-shadow:0 10px 24px rgba(99,102,241,.08);border-radius:20px;padding:18px">';
     html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">';
-    html += '<div class="modal-title" style="margin:0">第 3 步：把家庭码发给家人</div>';
-    html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(99,102,241,.12);color:var(--primary-dark);font-size:.78rem;font-weight:700">创建成功</div>';
+    html += '<div class="modal-title" style="margin:0">绗?3 姝ワ細鎶婂搴爜鍙戠粰瀹朵汉</div>';
+    html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(99,102,241,.12);color:var(--primary-dark);font-size:.78rem;font-weight:700">鍒涘缓鎴愬姛</div>';
     html += '</div>';
-    html += '<div class="welcome-desc" style="margin-bottom:14px">你的家庭已经创建好了。家人输入这 6 位家庭码申请加入，通过后就能和你共享同一份记录。</div>';
+    html += '<div class="welcome-desc" style="margin-bottom:14px">浣犵殑瀹跺涵宸茬粡鍒涘缓濂戒簡銆傚浜鸿緭鍏ヨ繖 6 浣嶅搴爜鐢宠鍔犲叆锛岄€氳繃鍚庡氨鑳藉拰浣犲叡浜悓涓€浠借褰曘€?/div>';
     html += '<div class="family-code-box">' + escapeHtml(code) + '</div>';
-    html += '<div class="family-code-tip">建议现在就把家庭码发给另一台手机。对方提交申请后，你可以在设置页审核。</div>';
-    html += '<button class="btn-primary" onclick="UISettings.copyFamilyCodeAndEnter()">复制家庭码并进入今日页</button>';
-    html += '<button class="btn-secondary" style="margin-top:8px" onclick="UISettings.enterTodayAfterOnboarding()">稍后再发，先进入今日页</button>';
+    html += '<div class="family-code-tip">寤鸿鐜板湪灏辨妸瀹跺涵鐮佸彂缁欏彟涓€鍙版墜鏈恒€傚鏂规彁浜ょ敵璇峰悗锛屼綘鍙互鍦ㄨ缃〉瀹℃牳銆?/div>';
+    html += '<button class="btn-primary" onclick="UISettings.copyFamilyCodeAndEnter()">澶嶅埗瀹跺涵鐮佸苟杩涘叆浠婃棩椤?/button>';
+    html += '<button class="btn-secondary" style="margin-top:8px" onclick="UISettings.enterTodayAfterOnboarding()">绋嶅悗鍐嶅彂锛屽厛杩涘叆浠婃棩椤?/button>';
     html += '</div>';
     html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
@@ -656,7 +669,7 @@ var UISettings = (function () {
     UIToday.closeModal();
     App.navigate('today');
     App.renderPage();
-    App.toast('已进入今日页');
+    App.toast('宸茶繘鍏ヤ粖鏃ラ〉');
   }
 
   function addBaby() {
@@ -671,21 +684,21 @@ var UISettings = (function () {
 
   function showBabyForm(baby) {
     var isEdit = !!baby;
-    var current = baby || { name: '', birthday: '', avatar: '🍼' };
-    var avatars = ['🍼', '🐣', '👶', '🌟', '🧸', '🐥', '🐻'];
+    var current = baby || { name: '', birthday: '', avatar: '馃嵓' };
+    var avatars = ['馃嵓', '馃悾', '馃懚', '馃専', '馃Ц', '馃惀', '馃惢'];
     var html = '<div class="modal-overlay" onclick="if(event.target===this)UIToday.closeModal()"><div class="modal-sheet">';
-    html += '<div class="modal-handle"></div><div class="modal-title">' + (isEdit ? '编辑宝宝' : '添加宝宝') + '</div>';
-    html += '<div class="form-group"><label class="form-label">头像</label><div style="display:flex;gap:8px;flex-wrap:wrap">';
+    html += '<div class="modal-handle"></div><div class="modal-title">' + (isEdit ? '缂栬緫瀹濆疂' : '娣诲姞瀹濆疂') + '</div>';
+    html += '<div class="form-group"><label class="form-label">澶村儚</label><div style="display:flex;gap:8px;flex-wrap:wrap">';
     avatars.forEach(function (avatar) {
       var selected = current.avatar === avatar ? 'border:2px solid var(--primary);background:var(--c-sleep)' : '';
       html += '<button onclick="document.getElementById(\'baby-avatar\').value=\'' + avatar + '\';UISettings._selectAvatar(this)" style="font-size:1.5rem;padding:8px;border-radius:10px;' + selected + '" data-avatar="' + avatar + '">' + avatar + '</button>';
     });
     html += '</div><input type="hidden" id="baby-avatar" value="' + escapeAttr(current.avatar) + '"></div>';
-    html += '<div class="form-group"><label class="form-label">小名</label><input type="text" class="form-input" id="baby-name" value="' + escapeAttr(current.name || '') + '" placeholder="如：豆豆"></div>';
-    html += '<div class="form-group"><label class="form-label">出生日期</label><input type="date" class="form-input" id="baby-birthday" value="' + escapeAttr(current.birthday || '') + '"></div>';
-    html += '<button class="btn-primary" onclick="UISettings.saveBaby(' + (isEdit ? '\'' + current.id + '\'' : 'null') + ')">保存</button>';
+    html += '<div class="form-group"><label class="form-label">灏忓悕</label><input type="text" class="form-input" id="baby-name" value="' + escapeAttr(current.name || '') + '" placeholder="濡傦細璞嗚眴"><div class="field-error" id="baby-name-error" aria-live="polite"></div></div>';
+    html += '<div class="form-group"><label class="form-label">鍑虹敓鏃ユ湡</label><input type="date" class="form-input" id="baby-birthday" value="' + escapeAttr(current.birthday || '') + '"><div class="field-error" id="baby-birthday-error" aria-live="polite"></div></div>';
+    html += '<button class="btn-primary" onclick="UISettings.saveBaby(' + (isEdit ? '\'' + current.id + '\'' : 'null') + ')">淇濆瓨</button>';
     if (isEdit) {
-      html += '<button class="btn-danger" style="margin-top:8px" onclick="UISettings.deleteBaby(\'' + current.id + '\')">删除此宝宝</button>';
+      html += '<button class="btn-danger" style="margin-top:8px" onclick="UISettings.deleteBaby(\'' + current.id + '\')">鍒犻櫎姝ゅ疂瀹?/button>';
     }
     html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
@@ -706,7 +719,7 @@ var UISettings = (function () {
     return DB.upsertBaby({
       name: baby.name,
       birthday: baby.birthday,
-      avatar: baby.avatar || '🍼'
+      avatar: baby.avatar || '馃嵓'
     });
   }
 
@@ -714,7 +727,7 @@ var UISettings = (function () {
     var baby = {
       name: getInputValue('baby-name'),
       birthday: getInputValue('baby-birthday'),
-      avatar: getInputValue('baby-avatar') || '🍼'
+      avatar: getInputValue('baby-avatar') || '馃嵓'
     };
     if (id) baby.id = id;
 
@@ -725,13 +738,13 @@ var UISettings = (function () {
       });
     }).then(function () {
       UIToday.closeModal();
-      App.toast('已保存');
+      App.toast('???');
       App.renderPage();
     });
   }
 
   function deleteBaby(id) {
-    if (!confirm('删除此宝宝后，相关记录也会一起隐藏，确认继续吗？')) return;
+    if (!confirm('鍒犻櫎姝ゅ疂瀹濆悗锛岀浉鍏宠褰曚篃浼氫竴璧烽殣钘忥紝纭缁х画鍚楋紵')) return;
     DB.deleteBaby(id).then(function () {
       return DB.getMeta('currentBabyId');
     }).then(function (currentBabyId) {
@@ -739,7 +752,7 @@ var UISettings = (function () {
       return null;
     }).then(function () {
       UIToday.closeModal();
-      App.toast('已删除');
+      App.toast('???');
       App.renderPage();
     });
   }
@@ -751,7 +764,7 @@ var UISettings = (function () {
       if (!on) buttons = buttons.filter(function (item) { return item !== type; });
       return DB.setMeta('homeButtons', buttons);
     }).then(function () {
-      App.toast(on ? '已添加到首页' : '已从首页移除');
+      App.toast(on ? '宸叉坊鍔犲埌棣栭〉' : '宸蹭粠棣栭〉绉婚櫎');
     });
   }
 
@@ -760,12 +773,12 @@ var UISettings = (function () {
       return Sync.createFamily({ role: role || 'parent', displayName: role || null });
     }).then(function (result) {
       if (!result || !result.success || !result.code) {
-        App.toast(result && result.error ? result.error : '创建家庭失败');
+        App.toast(result && result.error ? result.error : '鍒涘缓瀹跺涵澶辫触');
         return null;
       }
       return DB.setMeta('familyCode', result.code).then(function () {
         if (!silent) {
-          App.toast('家庭码已生成：' + result.code);
+          App.toast('???????' + result.code);
           App.renderPage();
         }
         return result.code;
@@ -781,7 +794,7 @@ var UISettings = (function () {
     DB.getMeta('familyCode').then(function (code) {
       if (!code) return;
       if (navigator.clipboard) navigator.clipboard.writeText(code).catch(function () {});
-      App.toast('家庭码已复制');
+      App.toast('瀹跺涵鐮佸凡澶嶅埗');
     });
   }
 
@@ -795,11 +808,11 @@ var UISettings = (function () {
   }
 
   function manualSync() {
-    App.toast('正在同步');
+    App.toast('姝ｅ湪鍚屾');
     Sync.sync().then(function (result) {
       App.renderPage();
-      if (result && result.error) App.toast('同步失败');
-      else App.toast('同步完成');
+      if (result && result.error) App.toast('鍚屾澶辫触');
+      else App.toast('鍚屾瀹屾垚');
     });
   }
 
@@ -813,7 +826,7 @@ var UISettings = (function () {
       link.download = 'babycare-backup-' + new Date().toISOString().slice(0, 10) + '.json';
       link.click();
       URL.revokeObjectURL(url);
-      App.toast('已导出');
+      App.toast('???');
     });
   }
 
@@ -826,11 +839,11 @@ var UISettings = (function () {
         var data = JSON.parse(e.target.result);
         if (!data.babies || !data.events) throw new Error('invalid_backup');
         DB.importAll(data).then(function () {
-          App.toast('导入成功');
+          App.toast('瀵煎叆鎴愬姛');
           App.renderPage();
         });
       } catch (err) {
-        App.toast('导入失败，文件格式不正确');
+        App.toast('瀵煎叆澶辫触锛屾枃浠舵牸寮忎笉姝ｇ‘');
       }
     };
     reader.readAsText(file);
@@ -841,12 +854,12 @@ var UISettings = (function () {
     var parts = [];
     if (baby.birthday) parts.push(baby.birthday);
     var days = Calc.daysSinceBirth(baby.birthday);
-    if (days != null) parts.push('出生 ' + days + ' 天');
-    return parts.join(' · ') || '未设置';
+    if (days != null) parts.push('?? ' + days + ' ?');
+    return parts.join(' ? ') || '???';
   }
 
   function formatDateTime(value) {
-    if (!value) return '未知';
+    if (!value) return '鏈煡';
     return new Date(value).toLocaleString('zh-CN');
   }
 
