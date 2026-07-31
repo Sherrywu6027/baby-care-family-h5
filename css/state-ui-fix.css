@@ -1,0 +1,161 @@
+.empty-state {
+  margin: 14px 0 6px;
+  padding: 22px 18px;
+  border-radius: 20px;
+  background:
+    radial-gradient(circle at top right, rgba(129, 140, 248, 0.14), transparent 36%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.98));
+  border: 1px solid rgba(99, 102, 241, 0.08);
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.06);
+  color: var(--text-sub);
+}
+
+.empty-state .es-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 10px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.10);
+  font-size: 1.65rem;
+}
+
+.empty-state .es-text {
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.welcome-error {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff5f5, #fef2f2);
+  border: 1px solid rgba(239, 68, 68, 0.14);
+  color: #b91c1c;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.06);
+}
+
+.welcome-error-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.welcome-error-actions .btn-secondary {
+  padding: 11px 10px;
+  font-size: 0.84rem;
+}
+
+.toast {
+  left: 12px;
+  right: 12px;
+}
+
+.toast-inner {
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.96));
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.24);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.settings-confirm-overlay .modal-sheet,
+.settings-busy-overlay .modal-sheet,
+.settings-action-result-overlay .modal-sheet {
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.12);
+}
+
+.settings-confirm-overlay .modal-title,
+.settings-busy-overlay .modal-title,
+.settings-action-result-overlay .modal-title {
+  position: relative;
+  padding-top: 42px;
+}
+
+.settings-confirm-overlay .modal-title::before,
+.settings-busy-overlay .modal-title::before,
+.settings-action-result-overlay .modal-title::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+}
+
+.settings-confirm-overlay .modal-title::before {
+  background:
+    radial-gradient(circle at center, rgba(99, 102, 241, 0.22) 0 45%, transparent 46%),
+    linear-gradient(180deg, #eef2ff, #e0e7ff);
+  box-shadow: 0 10px 24px rgba(99, 102, 241, 0.16);
+}
+
+.settings-busy-overlay .modal-title::before {
+  background:
+    radial-gradient(circle at center, rgba(245, 158, 11, 0.28) 0 44%, transparent 45%),
+    linear-gradient(180deg, #fffbeb, #fef3c7);
+  box-shadow: 0 10px 24px rgba(245, 158, 11, 0.16);
+}
+
+.settings-action-result-overlay .modal-title::before {
+  background:
+    radial-gradient(circle at center, rgba(34, 197, 94, 0.24) 0 44%, transparent 45%),
+    linear-gradient(180deg, #f0fdf4, #dcfce7);
+  box-shadow: 0 10px 24px rgba(34, 197, 94, 0.16);
+}
+
+.settings-confirm-overlay.is-danger .modal-title::before,
+.settings-action-result-overlay.is-danger .modal-title::before {
+  background:
+    radial-gradient(circle at center, rgba(239, 68, 68, 0.24) 0 44%, transparent 45%),
+    linear-gradient(180deg, #fff1f2, #fee2e2);
+  box-shadow: 0 10px 24px rgba(239, 68, 68, 0.16);
+}
+
+.settings-confirm-overlay .welcome-desc,
+.settings-busy-overlay .welcome-desc,
+.settings-action-result-overlay .welcome-desc {
+  text-align: center;
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.settings-confirm-overlay .btn-danger,
+.settings-action-result-overlay .btn-danger {
+  padding: 14px;
+  border-radius: 12px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.96rem;
+  font-weight: 700;
+}
+
+.settings-confirm-overlay .btn-secondary,
+.settings-busy-overlay .btn-secondary,
+.settings-action-result-overlay .btn-secondary {
+  min-height: 46px;
+}
+
+.field-error {
+  font-size: 0.79rem;
+  line-height: 1.45;
+}
+
+@media (max-width: 380px) {
+  .empty-route-card,
+  .empty-state {
+    border-radius: 18px;
+  }
+
+  .welcome-error-actions {
+    grid-template-columns: 1fr;
+  }
+}

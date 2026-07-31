@@ -132,9 +132,27 @@ var App = (function () {
     if (toastTimer) clearTimeout(toastTimer);
     var el = document.createElement('div');
     el.className = 'toast';
-    el.textContent = msg;
+    el.setAttribute('role', 'status');
+    el.setAttribute('aria-live', 'polite');
+    el.innerHTML = '<div class="toast-inner">' + escapeHtml(msg) + '</div>';
     document.body.appendChild(el);
-    toastTimer = setTimeout(function () { el.remove(); }, 2000);
+    requestAnimationFrame(function () {
+      el.classList.add('show');
+    });
+    toastTimer = setTimeout(function () {
+      el.classList.remove('show');
+      setTimeout(function () {
+        if (el.parentNode) el.parentNode.removeChild(el);
+      }, 220);
+    }, 2200);
+  }
+
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   function navigate(route) {

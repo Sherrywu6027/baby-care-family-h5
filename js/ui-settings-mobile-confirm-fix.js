@@ -205,7 +205,8 @@ var UISettings = (function (BaseUISettings) {
     options = options || {};
     pendingConfirmAction = typeof options.onConfirm === 'function' ? options.onConfirm : null;
     var btnClass = options.danger ? 'btn-danger' : 'btn-primary';
-    var html = '<div class="modal-overlay settings-confirm-overlay" onclick="if(event.target===this)UISettings.closeConfirmSheet()"><div class="modal-sheet">';
+    var overlayClass = 'modal-overlay settings-confirm-overlay' + (options.danger ? ' is-danger' : '');
+    var html = '<div class="' + overlayClass + '" onclick="if(event.target===this)UISettings.closeConfirmSheet()"><div class="modal-sheet">';
     html += '<div class="modal-handle"></div>';
     html += '<div class="modal-title">' + escapeHtml(options.title || '请确认') + '</div>';
     html += '<div class="welcome-desc" style="margin-bottom:16px">' + escapeHtml(options.message || '') + '</div>';
@@ -256,7 +257,8 @@ var UISettings = (function (BaseUISettings) {
     options = options || {};
     pendingAfterResult = typeof options.onClose === 'function' ? options.onClose : null;
     var btnClass = options.danger ? 'btn-danger' : 'btn-primary';
-    var html = '<div class="modal-overlay settings-action-result-overlay" onclick="if(event.target===this)UISettings.closeActionResultSheet()"><div class="modal-sheet">';
+    var overlayClass = 'modal-overlay settings-action-result-overlay' + (options.danger ? ' is-danger' : '');
+    var html = '<div class="' + overlayClass + '" onclick="if(event.target===this)UISettings.closeActionResultSheet()"><div class="modal-sheet">';
     html += '<div class="modal-handle"></div>';
     html += '<div class="modal-title">' + escapeHtml(options.title || '操作结果') + '</div>';
     html += '<div class="welcome-desc" style="margin-bottom:16px">' + escapeHtml(options.message || '') + '</div>';
@@ -319,6 +321,10 @@ var UISettings = (function (BaseUISettings) {
   next.openConfirmSheet = openConfirmSheet;
   next.closeConfirmSheet = closeConfirmSheet;
   next._confirmSheetProceed = _confirmSheetProceed;
+  next.openBusySheet = openBusySheet;
+  next.closeBusySheet = closeBusySheet;
+  next.openResultSheet = openResultSheet;
+  next.closeResultSheet = closeResultSheet;
   next.closeActionResultSheet = closeActionResultSheet;
   return next;
 })(UISettings);

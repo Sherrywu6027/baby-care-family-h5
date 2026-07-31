@@ -35,14 +35,17 @@ var UIToday = (function (BaseUIToday) {
   }
 
   function renderEmptyFamilyState(container) {
+    if (window.UIEmptyBabyState && UIEmptyBabyState.render) {
+      UIEmptyBabyState.render(container, {
+        title: '已进入原家庭',
+        desc: '当前家庭里还没有可用的宝宝档案，请先添加宝宝后再开始记录。',
+        cta: '去添加宝宝',
+        note: '添加成功后会直接回到今日页。'
+      });
+      return;
+    }
     if (!container) return;
-    var html = '<div class="welcome-page compact">';
-    html += '<div class="welcome-section compact">';
-    html += '<div class="welcome-title">已进入原家庭</div>';
-    html += '<div class="welcome-desc">当前家庭里还没有可用的宝宝档案，请先添加宝宝后再开始记录。</div>';
-    html += '<button class="btn-primary" onclick="App.navigate(\'settings\');App.renderPage()">去添加宝宝</button>';
-    html += '</div></div>';
-    container.innerHTML = html;
+    container.innerHTML = '<div class="welcome-page compact"><div class="welcome-section compact"><div class="welcome-title">已进入原家庭</div><div class="welcome-desc">当前家庭里还没有可用的宝宝档案，请先添加宝宝后再开始记录。</div><button class="btn-primary" onclick="UIToday.openAddBabyFlow()">去添加宝宝</button></div></div>';
   }
 
   var next = {};

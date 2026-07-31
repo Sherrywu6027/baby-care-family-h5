@@ -3,7 +3,6 @@ var UISettings = (function (BaseUISettings) {
 
   function render(container) {
     BaseUISettings.render(container);
-    scheduleAccountSection(container, 0);
   }
 
   function scheduleAccountSection(container, attempt) {

@@ -342,7 +342,7 @@ var Sync = (function () {
     }).then(function (familyId) {
       if (!familyId) return [];
       return client.from('join_requests')
-        .select('id, family_id, family_code, role, display_name, status, created_at, reviewed_at')
+        .select('id, family_id, family_code, requester_user, requester_email, role, display_name, status, created_at, reviewed_at')
         .eq('family_id', familyId)
         .eq('status', 'pending')
         .order('created_at', { ascending: true })

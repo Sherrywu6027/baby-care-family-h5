@@ -1,9 +1,4 @@
 var UILogin = (function () {
-  var checkingTimer = null;
-  var resendCooldown = 0;
-  var resendTimer = null;
-  var PASSWORD_NUDGE_KEY = 'password_nudge_shown_v1';
-
   function render(container) {
     Sync.getAuthState().then(function (authState) {
       if (authState && authState.loggedIn) {
@@ -11,41 +6,36 @@ var UILogin = (function () {
         return;
       }
 
-      stopChecking();
-
       var html = '<div class="welcome-page compact">';
       html += '<div class="welcome-hero compact">';
       html += '<div class="welcome-badge">账号登录</div>';
-      html += '<h1>先登录，系统再帮你找到家庭</h1>';
-      html += '<p>首次登录的用户，登录后可以创建家庭或加入家庭；老用户登录后会自动回到原来的家庭和记录。</p>';
+      html += '<h1>先登录，再进入你的家庭</h1>';
+      html += '<p>首次使用请直接注册；已有账号直接输入邮箱和密码登录。登录成功后会自动恢复你原来的家庭和记录。</p>';
       html += '</div>';
 
       html += '<div class="welcome-section compact" style="border:1px solid rgba(99,102,241,.18);background:linear-gradient(180deg, rgba(99,102,241,.08), rgba(99,102,241,.02));box-shadow:0 10px 24px rgba(99,102,241,.08)">';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">';
-      html += '<div class="welcome-title" style="margin:0">第 1 步：邮箱登录</div>';
-      html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(99,102,241,.12);color:var(--primary-dark);font-size:.78rem;font-weight:700">免密登录</div>';
+      html += '<div class="welcome-title" style="margin:0">首次使用：注册账号</div>';
+      html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(99,102,241,.12);color:var(--primary-dark);font-size:.78rem;font-weight:700">直接注册</div>';
       html += '</div>';
-      html += '<div class="welcome-desc">输入常用邮箱，系统会发送一封登录邮件。打开邮件里的链接后，会自动回到这里并继续下一步。</div>';
-      html += '<div class="welcome-desc" style="margin-top:10px">如果这个邮箱之前已经加入过家庭，登录后会直接恢复原来的家庭，不需要重新创建。</div>';
-      html += '<div class="form-group compact-group"><label class="form-label">邮箱</label><input type="email" class="form-input" id="login-email" placeholder="如：name@example.com"></div>';
-      html += '<button class="btn-primary" id="login-send-link-btn" onclick="UILogin.sendLink()">发送登录邮件</button>';
-      html += '<button class="btn-secondary" style="margin-top:10px" onclick="UILogin.checkLogin()">我已经点开邮件链接</button>';
-      html += '<div class="welcome-desc" style="margin-top:10px">收不到邮件时，先检查垃圾邮箱，或确认登录邮箱是否输入正确。</div>';
+      html += '<div class="welcome-desc">没有账号时，在这里填写邮箱和密码即可注册。注册成功后会继续进入创建家庭或加入家庭流程。</div>';
+      html += renderField('signup-email', '邮箱', 'email', '如：name@example.com', 'email');
+      html += renderField('signup-password', '密码', 'password', '至少 6 位', 'new-password');
+      html += '<button class="btn-primary" onclick="UILogin.signUp()">注册并进入</button>';
       html += '</div>';
 
-      html += '<div class="welcome-divider compact"><span>或者</span></div>';
+      html += '<div class="welcome-divider compact"><span>或</span></div>';
 
       html += '<div class="welcome-section compact" style="border:1px solid rgba(16,185,129,.20);background:linear-gradient(180deg, rgba(16,185,129,.08), rgba(16,185,129,.02));box-shadow:0 10px 24px rgba(16,185,129,.07)">';
       html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px">';
-      html += '<div class="welcome-title" style="margin:0">第 2 步：密码登录</div>';
-      html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(16,185,129,.12);color:#047857;font-size:.78rem;font-weight:700">更快进入</div>';
+      html += '<div class="welcome-title" style="margin:0">已有账号：密码登录</div>';
+      html += '<div style="padding:4px 10px;border-radius:999px;background:rgba(16,185,129,.12);color:#047857;font-size:.78rem;font-weight:700">直接进入</div>';
       html += '</div>';
-      html += '<div class="welcome-desc">如果你之前已经在设置页里设置过密码，可以直接用邮箱和密码登录。</div>';
-      html += '<div class="form-group compact-group"><label class="form-label">邮箱</label><input type="email" class="form-input" id="password-login-email" placeholder="如：name@example.com"></div>';
-      html += '<div class="form-group compact-group"><label class="form-label">密码</label><input type="password" class="form-input" id="password-login-password" placeholder="请输入密码"></div>';
+      html += '<div class="welcome-desc">如果这个邮箱之前已经注册并加入过家庭，登录后会优先恢复原来的家庭，再进入今天页面。</div>';
+      html += renderField('login-email', '邮箱', 'email', '如：name@example.com', 'email');
+      html += renderField('login-password', '密码', 'password', '请输入密码', 'current-password');
       html += '<button class="btn-primary" onclick="UILogin.passwordLogin()">密码登录</button>';
       html += '<button class="btn-secondary" style="margin-top:10px" onclick="UILogin.resetPassword()">忘记密码，发送重置邮件</button>';
-      html += '<div class="welcome-desc" style="margin-top:10px">如果你还没设置过密码，先使用上面的邮箱登录，进入后再到设置页设置密码。</div>';
       html += '</div>';
 
       html += '<div id="login-hint" style="margin-top:12px"></div>';
@@ -53,53 +43,93 @@ var UILogin = (function () {
       html += '</div>';
 
       container.innerHTML = html;
-      syncCooldownButton();
+      bindFieldFeedback(container);
     });
   }
 
-  function sendLink() {
-    if (resendCooldown > 0) {
-      renderError('请稍等 ' + resendCooldown + ' 秒后再发送登录邮件');
-      return;
-    }
-    var email = getPrimaryEmail();
+  function renderField(id, label, type, placeholder, autocomplete) {
+    return ''
+      + '<div class="form-group compact-group" id="' + id + '-group">'
+      + '<label class="form-label" for="' + id + '">' + label + '</label>'
+      + '<input type="' + type + '" class="form-input" id="' + id + '" placeholder="' + placeholder + '" autocapitalize="off" autocomplete="' + autocomplete + '">'
+      + '<div class="field-error" id="' + id + '-error" aria-live="polite"></div>'
+      + '</div>';
+  }
+
+  function bindFieldFeedback(container) {
+    var ids = ['signup-email', 'signup-password', 'login-email', 'login-password'];
+    ids.forEach(function (id) {
+      var el = container.querySelector('#' + id);
+      if (!el) return;
+      el.addEventListener('input', function () {
+        clearFieldError(id);
+        clearError();
+      });
+      el.addEventListener('blur', function () {
+        validateSingleField(id);
+      });
+    });
+  }
+
+  function signUp() {
+    clearAllErrors();
+    var email = getValue('signup-email').trim();
+    var password = getValue('signup-password').trim();
+
+    var hasError = false;
     if (!email) {
-      renderError('请输入邮箱');
-      return;
+      setFieldError('signup-email', '请输入邮箱');
+      hasError = true;
+    } else if (!isEmail(email)) {
+      setFieldError('signup-email', '邮箱格式不正确');
+      hasError = true;
     }
-    clearError();
-    renderHint('正在发送登录邮件...');
-    App.toast('正在发送登录邮件');
-    Sync.sendLoginCode(email).then(function (result) {
+    if (!password) {
+      setFieldError('signup-password', '请输入密码');
+      hasError = true;
+    } else if (password.length < 6) {
+      setFieldError('signup-password', '密码至少 6 位');
+      hasError = true;
+    }
+    if (hasError) return;
+
+    renderHint('正在注册...');
+    Sync.signUpWithPassword(email, password).then(function (result) {
       if (!result || !result.success) {
         renderHint('');
-        renderError(result && result.error ? result.error : '登录邮件发送失败');
-        if (result && result.error && /过于频繁|稍后/.test(result.error)) {
-          startCooldown(60);
-        }
+        handleSubmitError('signup', result && result.error ? result.error : '注册失败');
         return;
       }
-      startCooldown(60);
-      renderHint('邮件已发送。请打开邮箱，点击邮件里的登录链接，然后回到这里。');
-      App.toast('登录邮件已发送');
-      startChecking();
+      App.toast(result.hasFamily ? '已恢复原家庭' : '注册成功');
+      if (result.hasFamily) App.navigate('today');
+      App.renderPage();
     });
   }
 
   function passwordLogin() {
-    var email = getPasswordEmail();
-    var password = getValue('password-login-password').trim();
-    if (!email || !password) {
-      renderError('请输入邮箱和密码');
-      return;
+    clearAllErrors();
+    var email = getValue('login-email').trim();
+    var password = getValue('login-password').trim();
+
+    var hasError = false;
+    if (!email) {
+      setFieldError('login-email', '请输入邮箱');
+      hasError = true;
+    } else if (!isEmail(email)) {
+      setFieldError('login-email', '邮箱格式不正确');
+      hasError = true;
     }
-    clearError();
+    if (!password) {
+      setFieldError('login-password', '请输入密码');
+      hasError = true;
+    }
+    if (hasError) return;
+
     renderHint('正在登录...');
-    App.toast('正在登录');
     Sync.signInWithPassword(email, password).then(function (result) {
       if (!result || !result.success) {
         renderHint('');
-        renderError(result && result.error ? result.error : '密码登录失败');
+        handleSubmitError('login', result && result.error ? result.error : '密码登录失败');
         return;
       }
       App.toast(result.hasFamily ? '已恢复原家庭' : '登录成功');
@@ -109,110 +139,79 @@ var UILogin = (function () {
   }
 
   function resetPassword() {
-    var email = getPrimaryEmail() || getPasswordEmail();
+    clearAllErrors();
+    var email = getValue('login-email').trim() || getValue('signup-email').trim();
+    var targetId = getValue('login-email').trim() ? 'login-email' : 'signup-email';
+
     if (!email) {
-      renderError('请输入邮箱后再发送重置邮件');
+      setFieldError('login-email', '请先输入邮箱');
       return;
     }
-    clearError();
+    if (!isEmail(email)) {
+      setFieldError(targetId, '邮箱格式不正确');
+      return;
+    }
+
     renderHint('正在发送重置邮件...');
     Sync.resetPassword(email).then(function (result) {
       if (!result || !result.success) {
         renderHint('');
-        renderError(result && result.error ? result.error : '重置邮件发送失败');
+        handleSubmitError(targetId.indexOf('signup') === 0 ? 'signup' : 'login', result && result.error ? result.error : '重置邮件发送失败');
         return;
       }
-      renderHint('重置邮件已发送。请按邮件提示设置新密码，然后回来用密码登录。');
+      renderHint('重置邮件已发送。请按邮件提示设置新密码，然后再回来登录。');
       App.toast('重置邮件已发送');
     });
   }
 
-  function checkLogin() {
+  function validateSingleField(id) {
+    var value = getValue(id).trim();
+    if (!value) return;
+    if (id.indexOf('email') > -1 && !isEmail(value)) {
+      setFieldError(id, '邮箱格式不正确');
+      return false;
+    }
+    if (id.indexOf('password') > -1 && id.indexOf('signup') === 0 && value.length < 6) {
+      setFieldError(id, '密码至少 6 位');
+      return false;
+    }
+    clearFieldError(id);
+    return true;
+  }
+
+  function handleSubmitError(scope, message) {
+    var targetId = pickFieldForError(scope, message);
+    if (targetId) {
+      setFieldError(targetId, message);
+      return;
+    }
+    renderError(message);
+  }
+
+  function pickFieldForError(scope, message) {
+    var text = String(message || '');
+    if (/邮箱|email/i.test(text)) return scope === 'signup' ? 'signup-email' : 'login-email';
+    if (/密码|password/i.test(text)) return scope === 'signup' ? 'signup-password' : 'login-password';
+    return '';
+  }
+
+  function setFieldError(id, msg) {
+    var input = document.getElementById(id);
+    var error = document.getElementById(id + '-error');
+    if (input) input.classList.add('input-error');
+    if (error) error.textContent = msg;
+  }
+
+  function clearFieldError(id) {
+    var input = document.getElementById(id);
+    var error = document.getElementById(id + '-error');
+    if (input) input.classList.remove('input-error');
+    if (error) error.textContent = '';
+  }
+
+  function clearAllErrors() {
+    ['signup-email', 'signup-password', 'login-email', 'login-password'].forEach(clearFieldError);
     clearError();
-    renderHint('正在检查登录状态...');
-    Sync.getAuthState().then(function (state) {
-      if (state && state.loggedIn) {
-        return Sync.restoreFamilyContext();
-      }
-      return null;
-    }).then(function (restoreResult) {
-      return Sync.getAuthState().then(function (state) {
-        if (!state || !state.loggedIn) {
-          renderHint('');
-          renderError('还没有检测到登录。请先打开邮件里的登录链接。');
-          return;
-        }
-        App.toast(restoreResult && restoreResult.hasFamily ? '已恢复原家庭' : '登录成功');
-        stopChecking();
-        App.renderPage();
-        promptSetPasswordNudge();
-      });
-    }).catch(function (error) {
-      renderHint('');
-      renderError(error && error.message ? error.message : '登录检查失败，请重试');
-    });
-  }
-
-  function startChecking() {
-    stopChecking();
-    checkingTimer = setInterval(function () {
-      Sync.getAuthState().then(function (state) {
-        if (!state || !state.loggedIn) return;
-        stopChecking();
-        return Sync.restoreFamilyContext({ silent: true }).then(function () {
-          App.renderPage();
-          promptSetPasswordNudge();
-        });
-      }).catch(function () {});
-    }, 2000);
-  }
-
-  function stopChecking() {
-    if (!checkingTimer) return;
-    clearInterval(checkingTimer);
-    checkingTimer = null;
-  }
-
-  function startCooldown(seconds) {
-    resendCooldown = Math.max(0, Number(seconds) || 0);
-    syncCooldownButton();
-    if (resendTimer) clearInterval(resendTimer);
-    resendTimer = setInterval(function () {
-      resendCooldown -= 1;
-      if (resendCooldown <= 0) {
-        resendCooldown = 0;
-        clearInterval(resendTimer);
-        resendTimer = null;
-      }
-      syncCooldownButton();
-    }, 1000);
-  }
-
-  function syncCooldownButton() {
-    var btn = document.getElementById('login-send-link-btn');
-    if (!btn) return;
-    btn.disabled = resendCooldown > 0;
-    btn.textContent = resendCooldown > 0
-      ? ('请稍等 ' + resendCooldown + ' 秒')
-      : '发送登录邮件';
-  }
-
-  function promptSetPasswordNudge() {
-    try {
-      if (window.sessionStorage && sessionStorage.getItem(PASSWORD_NUDGE_KEY) === '1') return;
-      if (window.sessionStorage) sessionStorage.setItem(PASSWORD_NUDGE_KEY, '1');
-    } catch (e) {}
-    setTimeout(function () {
-      var ok = confirm('这次你是通过邮箱登录成功的。现在去设置一个密码吗？设置后下次可以直接用密码登录，避免邮件限流。');
-      if (!ok) return;
-      App.navigate('settings');
-      App.renderPage();
-      setTimeout(function () {
-        if (window.UISettings && UISettings.openPasswordDialog) {
-          UISettings.openPasswordDialog();
-        }
-      }, 80);
-    }, 120);
   }
 
   function renderHint(msg) {
@@ -232,17 +231,13 @@ var UILogin = (function () {
     if (el) el.innerHTML = '';
   }
 
-  function getPrimaryEmail() {
-    return getValue('login-email').trim() || getValue('password-login-email').trim();
-  }
-
-  function getPasswordEmail() {
-    return getValue('password-login-email').trim() || getValue('login-email').trim();
-  }
-
   function getValue(id) {
     var el = document.getElementById(id);
     return el ? String(el.value || '') : '';
+  }
+
+  function isEmail(value) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || ''));
   }
 
   function escapeHtml(value) {
@@ -255,9 +250,8 @@ var UILogin = (function () {
 
   return {
     render: render,
-    sendLink: sendLink,
+    signUp: signUp,
     passwordLogin: passwordLogin,
-    resetPassword: resetPassword,
-    checkLogin: checkLogin
+    resetPassword: resetPassword
   };
 })();

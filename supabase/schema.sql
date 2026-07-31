@@ -35,6 +35,7 @@ create table if not exists join_requests (
   family_id uuid references families(id) on delete cascade not null,
   family_code text not null,
   requester_user uuid not null,
+  requester_email text,
   role text default 'parent',
   display_name text,
   status text default 'pending' check (status in ('pending', 'approved', 'rejected')),
@@ -43,6 +44,8 @@ create table if not exists join_requests (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+
+alter table join_requests add column if not exists requester_email text;
 
 create unique index if not exists idx_join_requests_family_requester_unique
 on join_requests(family_id, requester_user);
@@ -203,10 +206,20 @@ declare
   v_family_id uuid;
   v_request_id uuid;
   v_status text;
+  v_requester_email text;
 begin
   if auth.uid() is null then
     raise exception 'not authenticated';
   end if;
+
+  v_requester_email := nullif(
+    coalesce(
+      auth.jwt() ->> 'email',
+      current_setting('request.jwt.claim.email', true),
+      ''
+    ),
+    ''
+  );
 
   select f.id into v_family_id
   from families f
@@ -230,6 +243,7 @@ begin
     family_id,
     family_code,
     requester_user,
+    requester_email,
     role,
     display_name,
     status
@@ -238,6 +252,7 @@ begin
     v_family_id,
     p_code,
     auth.uid(),
+    v_requester_email,
     coalesce(nullif(p_role, ''), 'parent'),
     nullif(p_display_name, ''),
     'pending'
@@ -245,6 +260,7 @@ begin
   on conflict (family_id, requester_user)
   do update set
     family_code = excluded.family_code,
+    requester_email = excluded.requester_email,
     role = excluded.role,
     display_name = excluded.display_name,
     status = 'pending',

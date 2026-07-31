@@ -233,7 +233,7 @@ var UIToday = (function () {
         html += '<div class="baby-avatar">' + (b.avatar || '🍼') + '</div>';
         html += '<div class="baby-info"><div class="bi-name">' + (b.name || '宝宝') + '</div><div class="bi-birthday">' + (b.birthday || '') + '</div></div></div>';
       });
-      html += '<button class="btn-primary" style="margin-top:12px" onclick="UIToday.closeModal();location.hash=\'#/settings\'">管理宝宝</button>';
+      html += '<button class="btn-primary" style="margin-top:12px" onclick="UIToday.openAddBabyFlow()">管理宝宝</button>';
       html += '</div></div>';
       document.body.insertAdjacentHTML('beforeend', html);
     });
@@ -244,6 +244,11 @@ var UIToday = (function () {
       closeModal();
       App.renderPage();
     });
+  }
+
+  function openAddBabyFlow() {
+    closeModal();
+    if (window.UISettings && UISettings.addBaby) UISettings.addBaby();
   }
 
   function openRecord(type) {
@@ -735,6 +740,7 @@ var UIToday = (function () {
     renderWithBaby: renderWithBaby,
     showBabyPicker: showBabyPicker,
     switchBaby: switchBaby,
+    openAddBabyFlow: openAddBabyFlow,
     openRecord: openRecord,
     saveRecord: saveRecord,
     stopTimer: stopTimer,

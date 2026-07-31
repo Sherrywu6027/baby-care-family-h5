@@ -208,8 +208,14 @@ var Sync = (function (BaseSync) {
         }
         var familyId = row.family_id || row.result_family_id || null;
         var familyCode = row.family_code || row.result_family_code || null;
+        var memberRole = row.role || row.result_role || '';
+        var memberDisplayName = row.display_name || row.result_display_name || memberRole || '';
         return DB.setMeta('familyId', familyId).then(function () {
           return DB.setMeta('familyCode', familyCode);
+        }).then(function () {
+          return DB.setMeta('memberRole', memberRole || null);
+        }).then(function () {
+          return DB.setMeta('memberDisplayName', memberDisplayName || null);
         }).then(function () {
           return DB.setMeta('onboardingCompleted', true);
         }).then(function () {

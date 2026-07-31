@@ -82,7 +82,7 @@ var UILog = (function () {
         groups[dateStr].forEach(function (e) {
           var t = EVENT_TYPES[e.type] || { icon: '•', label: e.type, color: 'var(--text)' };
           html += '<div class="timeline-item" onclick="UILog.editEvent(\'' + e.id + '\')" style="cursor:pointer">';
-          html += '<div class="ti-time">' + (e.type === 'weight' ? '日期' : Calc.formatTime(e.start_time)) + '</div>';
+          html += '<div class="ti-time">' + formatTimelineTime(e) + '</div>';
           html += '<div class="ti-icon">' + t.icon + '</div>';
           html += '<div class="ti-text"><div class="ti-type" style="color:' + t.color + '">' + Calc.eventDescription(e) + '</div>';
           if (e.note) html += '<div class="ti-detail">备注：' + e.note + '</div>';
@@ -100,6 +100,14 @@ var UILog = (function () {
     var timeSource = event && (event.created_at || event.updated_at || event.start_time);
     var time = timeSource ? new Date(timeSource).toLocaleString('zh-CN') : '未知时间';
     return '添加人：' + name + ' · 添加时间：' + time;
+  }
+
+  function formatTimelineTime(event) {
+    if (!event) return '--:--';
+    var timeSource = event.type === 'weight'
+      ? (event.created_at || event.updated_at || event.start_time)
+      : event.start_time;
+    return timeSource ? Calc.formatTime(timeSource) : '--:--';
   }
 
   function editEvent(id) {
