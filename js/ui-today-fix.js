@@ -357,6 +357,7 @@ var UIToday = (function () {
     html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
 
+    applyFutureDateTimeGuards('rec-date', type === 'weight' ? null : 'rec-time');
     if (type === 'weight') renderWeightReference();
   }
 
@@ -373,6 +374,7 @@ var UIToday = (function () {
     html += '<div class="sheet-actions sticky-sheet-actions"><button type="button" class="btn-secondary" onclick="UIToday.dismissRecordModal()">取消</button><button type="button" class="btn-primary" onclick="UIToday.saveRecord(\'weight\')">保存</button></div>';
     html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+    applyFutureDateTimeGuards('rec-date', null);
     renderWeightReference();
   }
 
@@ -535,6 +537,7 @@ var UIToday = (function () {
     html += '<button class="btn-primary" onclick="UIToday.saveDirectManual()">保存</button>';
     html += '</div></div>';
     document.body.insertAdjacentHTML('beforeend', html);
+    applyFutureDateTimeGuards('direct-date', 'direct-time');
   }
 
   function refreshDirectTotal() {
@@ -555,9 +558,9 @@ var UIToday = (function () {
     var totalSec = total * 60;
     var dateStr = document.getElementById('direct-date').value;
     var timeStr = document.getElementById('direct-time').value;
-    var startDate = new Date(dateStr + 'T' + timeStr);
     var startISO = TimeUtil.makeLocalIsoFromChinaDateTime(dateStr, timeStr);
-    var endISO = new Date(startDate.getTime() + totalSec * 1000).toISOString();
+    var startMs = TimeUtil.getChinaDateTimeMs(dateStr, timeStr);
+    var endISO = new Date(startMs + totalSec * 1000).toISOString();
     var note = document.getElementById('direct-note').value;
 
     DB.getMeta('currentBabyId').then(function (babyId) {
@@ -720,6 +723,32 @@ var UIToday = (function () {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  function applyFutureDateTimeGuards(dateInputId, timeInputId) {
+    var dateInput = document.getElementById(dateInputId);
+    if (!dateInput) return;
+
+    var today = TimeUtil.todayChinaDate();
+    dateInput.max = today;
+
+    function syncTimeMax() {
+      var timeInput = timeInputId ? document.getElementById(timeInputId) : null;
+      if (!timeInput) return;
+      var currentTime = getCurrentChinaTimeValue();
+      if (dateInput.value === today) {
+        timeInput.max = currentTime;
+        if (timeInput.value && timeInput.value > currentTime) {
+          timeInput.value = currentTime;
+        }
+      } else {
+        timeInput.removeAttribute('max');
+      }
+    }
+
+    dateInput.addEventListener('input', syncTimeMax);
+    dateInput.addEventListener('change', syncTimeMax);
+    syncTimeMax();
   }
 
   function stopTimer(type) {
@@ -896,6 +925,7 @@ var UIToday = (function () {
     cancelDirectTimer: cancelDirectTimer,
     toggleWeightNoteField: toggleWeightNoteField,
     refreshGrowthReference: refreshGrowthReference,
-    buildWeightReferenceNote: buildWeightReferenceNote
+    buildWeightReferenceNote: buildWeightReferenceNote,
+    applyFutureDateTimeGuards: applyFutureDateTimeGuards
   };
 })();

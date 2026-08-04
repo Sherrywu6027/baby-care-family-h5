@@ -3,16 +3,17 @@ var UISettings = (function (baseUISettings) {
 
   function render(container) {
     baseUISettings.render(container);
+    scheduleDiagnosticSection(container);
   }
 
-  function scheduleAccountSection(container, attempt) {
+  function scheduleDiagnosticSection(container, attempt) {
     attempt = attempt || 0;
     setTimeout(function () {
-      injectAccountSection(container, attempt);
+      injectDiagnosticSection(container, attempt);
     }, attempt === 0 ? 0 : 80);
   }
 
-  function injectAccountSection(container, attempt) {
+  function injectDiagnosticSection(container, attempt) {
     if (!container) return;
     Promise.all([
       Sync.getAuthState().catch(function () { return null; }),
@@ -21,36 +22,42 @@ var UISettings = (function (baseUISettings) {
       var authState = values[0] || null;
       var authUserId = values[1] || null;
       if ((!authState || !authState.loggedIn) && !authUserId) return;
-      if (container.querySelector('.settings-account-section')) return;
+      if (container.querySelector('.settings-diagnostic-section')) return;
 
-      var anchor = container.querySelector('.log-header');
+      var anchor = findDiagnosticAnchor(container);
       if (!anchor || !anchor.parentNode) {
-        if ((attempt || 0) < 8) scheduleAccountSection(container, (attempt || 0) + 1);
+        if ((attempt || 0) < 8) scheduleDiagnosticSection(container, (attempt || 0) + 1);
         return;
       }
 
-      var section = document.createElement('div');
-      section.className = 'settings-account-section';
-      section.innerHTML = buildAccountHtml((authState && authState.email) || '');
-      anchor.parentNode.insertBefore(section, anchor.nextSibling);
-      injectDiagnosticSection(section);
+      var block = document.createElement('div');
+      block.className = 'settings-diagnostic-section';
+      block.style.display = 'none';
+      anchor.parentNode.insertBefore(block, anchor.nextSibling);
+
+      fillDiagnosticSection(block, authUserId);
     });
   }
 
-  function injectDiagnosticSection(section) {
+  function findDiagnosticAnchor(container) {
+    var items = container.querySelectorAll('.settings-item');
+    for (var i = 0; i < items.length; i += 1) {
+      if (items[i].textContent.indexOf('账户恢复与诊断') >= 0) {
+        return items[i];
+      }
+    }
+    return null;
+  }
+
+  function fillDiagnosticSection(block, authUserId) {
     Promise.all([
-      DB.getMeta('authUserId'),
       DB.getMeta('familyId'),
       DB.getMeta('familyCode'),
       loadMembershipDiagnostic()
     ]).then(function (values) {
-      var authUserId = values[0] || '';
-      var familyId = values[1] || '';
-      var familyCode = values[2] || '';
-      var diagnostic = values[3] || {};
-      var block = document.createElement('div');
-      block.className = 'settings-diagnostic-section';
-      block.style.display = 'none';
+      var familyId = values[0] || '';
+      var familyCode = values[1] || '';
+      var diagnostic = values[2] || {};
       block.innerHTML = buildDiagnosticHtml({
         authUserId: authUserId,
         familyId: familyId,
@@ -58,21 +65,7 @@ var UISettings = (function (baseUISettings) {
         membership: diagnostic.membership,
         error: diagnostic.error
       });
-      section.appendChild(block);
     });
-  }
-
-  function buildAccountHtml(email) {
-    var html = '';
-    html += '<div class="settings-section-title">账号</div>';
-    html += '<div class="settings-group">';
-    html += '<div class="settings-item"><div class="si-label">当前邮箱</div><div class="si-value" style="font-weight:600">' + escapeHtml(email || '未登录') + '</div></div>';
-    html += '<div class="settings-item" onclick="UISettings.openPasswordDialog()" style="cursor:pointer;color:var(--primary);font-weight:600">设置或修改密码</div>';
-    html += '<div class="settings-item" onclick="UISettings.sendPasswordReset()" style="cursor:pointer;color:var(--primary);font-weight:600">发送重置密码邮件</div>';
-    html += '<div class="settings-item" onclick="UISettings.signOut()" style="cursor:pointer;color:var(--danger);font-weight:600">仅退出登录</div>';
-    html += '<div class="settings-item" onclick="UISettings.toggleDiagnosticSection()" style="cursor:pointer;color:#94a3b8;font-size:.86rem">账户恢复与诊断</div>';
-    html += '</div>';
-    return html;
   }
 
   function buildDiagnosticHtml(state) {
@@ -88,7 +81,7 @@ var UISettings = (function (baseUISettings) {
     if (state.error) {
       html += '<div class="ti-detail" style="margin-top:6px;color:var(--danger);word-break:break-all">' + escapeHtml(state.error) + '</div>';
     } else if (!membership) {
-      html += '<div class="ti-detail" style="margin-top:6px">空结果。通常表示当前登录 UID 还没有绑定到任何 `members.auth_user`。</div>';
+      html += '<div class="ti-detail" style="margin-top:6px">空结果。通常表示当前登录 UID 还没有绑定到任何 members.auth_user。</div>';
     } else {
       html += '<div class="ti-detail" style="margin-top:6px;word-break:break-all">family_id: ' + escapeHtml(membership.result_family_id || membership.family_id || '') + '</div>';
       html += '<div class="ti-detail" style="word-break:break-all">family_code: ' + escapeHtml(membership.result_family_code || membership.family_code || '') + '</div>';
@@ -221,7 +214,7 @@ var UISettings = (function (baseUISettings) {
       if (result && result.hasFamily) {
         openResultSheet({
           title: '修复成功',
-          message: '本地家庭信息已经恢复，页面将刷新显示最新家庭状态。',
+          message: '本地家庭信息已经恢复，页面将刷新显示最新状态。',
           buttonText: '刷新页面',
           onClose: function () {
             App.renderPage();
@@ -265,7 +258,7 @@ var UISettings = (function (baseUISettings) {
         }).then(function () {
           openResultSheet({
             title: '修复成功',
-            message: '本地家庭信息已经强制写回，家庭码和成员状态会重新显示。',
+            message: '本地家庭信息已经写回，家庭码和成员状态会重新显示。',
             buttonText: '刷新页面',
             onClose: function () {
               App.renderPage();
@@ -287,8 +280,13 @@ var UISettings = (function (baseUISettings) {
     var block = document.querySelector('.settings-diagnostic-section');
     if (!block) return;
     block.style.display = block.style.display === 'none' ? '' : 'none';
-    if (block.style.display !== 'none' && block.scrollIntoView) {
-      block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (block.style.display !== 'none') {
+      DB.getMeta('authUserId').then(function (authUserId) {
+        fillDiagnosticSection(block, authUserId || '');
+        if (block.scrollIntoView) {
+          block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
     }
   }
 

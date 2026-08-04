@@ -129,7 +129,7 @@ var UIToday = (function (baseUIToday) {
     html += '<div class="welcome-desc timer-backfill-desc">' + escapeHtml(options.desc || '') + '</div>';
     html += '<label class="timer-backfill-field" for="timer-backfill-time-input">';
     html += '<span class="timer-backfill-label">开始时间</span>';
-    html += '<input id="timer-backfill-time-input" class="timer-backfill-input" type="time" step="60" value="' + escapeAttr(formatChinaTime(defaultTime)) + '">';
+    html += '<input id="timer-backfill-time-input" class="timer-backfill-input" type="time" step="60" max="' + escapeAttr(formatChinaTime(Date.now())) + '" value="' + escapeAttr(formatChinaTime(defaultTime)) + '">';
     html += '</label>';
     html += '<div class="field-error timer-backfill-error" id="timer-backfill-error" aria-live="polite"></div>';
     html += '<div class="timer-backfill-current">当前时间 ' + formatChinaTime(Date.now()) + '</div>';

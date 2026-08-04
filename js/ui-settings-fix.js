@@ -21,8 +21,8 @@ var UISettings = (function (baseUISettings) {
       var members = memberState.members || [];
       var currentMember = findCurrentMember(members, authUserId);
       var isCreator = !!(currentMember && currentMember.is_creator);
-      var html = '';
 
+      var html = '';
       html += '<div class="log-header"><h2 style="font-size:1.2rem">设置</h2></div>';
 
       html += '<div class="settings-section-title">宝宝档案</div>';
@@ -34,7 +34,7 @@ var UISettings = (function (baseUISettings) {
       html += '<div class="settings-item" onclick="UISettings.addBaby()" style="cursor:pointer;justify-content:center;color:var(--primary);font-weight:600">+ 添加宝宝</div>';
       html += '</div>';
 
-      html += '<div class="settings-section-title">首页按钮</div>';
+      html += '<div class="settings-section-title">首页显示</div>';
       html += '<div class="settings-group">';
       Object.keys(EVENT_TYPES).forEach(function (key) {
         var eventType = EVENT_TYPES[key];
@@ -48,15 +48,13 @@ var UISettings = (function (baseUISettings) {
 
       html += '<div class="settings-section-title">家庭共享</div>';
       html += '<div class="settings-group">';
-      html += renderSyncStatusBlock();
-      html += '<div class="settings-item" onclick="UISettings.manualSync()" style="cursor:pointer;color:var(--primary);font-weight:600">立即同步</div>';
       if (familyCode) {
         html += '<div class="settings-item"><div class="si-label">家庭码</div><div class="si-value" style="font-weight:700;letter-spacing:2px">' + escapeHtml(familyCode) + '</div></div>';
         html += '<div class="settings-item" onclick="UISettings.copyFamilyCode()" style="cursor:pointer;color:var(--primary);font-weight:600">复制家庭码</div>';
       } else {
         html += '<div class="settings-item" onclick="UISettings.createFamilyLocal()" style="cursor:pointer;color:var(--primary);font-weight:600">生成家庭码</div>';
       }
-      html += '<div class="settings-item" onclick="UISettings.joinFamily()" style="cursor:pointer;color:var(--primary);font-weight:600">输入家庭码加入</div>';
+      html += '<div class="settings-item" onclick="UISettings.joinFamily()" style="cursor:pointer;color:var(--primary);font-weight:600">输入家庭码加入家庭</div>';
       html += '</div>';
 
       if ((authState && authState.loggedIn) || (authState && authState.email) || authUserId) {
@@ -65,12 +63,13 @@ var UISettings = (function (baseUISettings) {
         html += '<div class="settings-item"><div class="si-label">当前邮箱</div><div class="si-value" style="font-weight:600">' + escapeHtml((authState && authState.email) || '已登录') + '</div></div>';
         html += '<div class="settings-item" onclick="UISettings.openPasswordDialog()" style="cursor:pointer;color:var(--primary);font-weight:600">设置或修改密码</div>';
         html += '<div class="settings-item" onclick="UISettings.sendPasswordReset()" style="cursor:pointer;color:var(--primary);font-weight:600">忘记密码 / 发送重置邮件</div>';
+        html += '<div class="settings-item" onclick="UISettings.toggleDiagnosticSection()" style="cursor:pointer"><div class="si-label">账户恢复与诊断</div><span class="si-arrow">查看 →</span></div>';
         html += '<div class="settings-item" onclick="UISettings.signOut()" style="cursor:pointer;color:var(--danger);font-weight:600">仅退出登录</div>';
         html += '</div>';
       }
 
       if (familyCode) {
-        html += '<div class="settings-section-title">成员管理</div>';
+        html += '<div class="settings-section-title">家庭成员</div>';
         html += '<div class="settings-group">';
         if (!Sync.isConfigured()) {
           html += '<div class="settings-item" style="display:block"><div class="si-label">当前为本地模式</div><div class="ti-detail" style="margin-top:6px">成员管理需要连接 Supabase 后使用。</div></div>';
@@ -86,13 +85,26 @@ var UISettings = (function (baseUISettings) {
         html += '</div>';
 
         if (currentMember) {
-          html += '<div class="settings-section-title">家庭操作</div>';
+          html += '<div class="settings-section-title">我的家庭操作</div>';
           html += '<div class="settings-group">';
-          html += '<div class="settings-item" onclick="UISettings.openEditMember(\'' + escapeJs(currentMember.id) + '\')" style="cursor:pointer"><div class="si-label">修改我的称呼</div><span class="si-arrow">→</span></div>';
+          html += '<div class="settings-item" onclick="UISettings.openEditMember(\'' + escapeJs(currentMember.id) + '\')" style="cursor:pointer"><div class="si-label">修改我的称呼</div><span class="si-arrow">编辑 →</span></div>';
           html += '<div class="settings-item" onclick="UISettings.leaveFamily()" style="cursor:pointer;color:var(--danger);font-weight:700">退出当前家庭（谨慎）</div>';
           html += '</div>';
         }
       }
+
+      html += '<div class="settings-section-title">数据备份</div>';
+      html += '<div class="settings-group">';
+      html += '<div class="settings-item" onclick="UISettings.exportData()" style="cursor:pointer"><div class="si-label">导出全部数据</div><span class="si-arrow">下载 →</span></div>';
+      html += '<div class="settings-item" onclick="document.getElementById(\'import-file\').click()" style="cursor:pointer"><div class="si-label">导入备份</div><span class="si-arrow">选择文件 →</span></div>';
+      html += '</div>';
+
+      html += '<div class="settings-section-title">消息与同步</div>';
+      html += renderNotificationSectionBlock();
+      html += '<div class="settings-group">';
+      html += renderSyncStatusBlock();
+      html += '<div class="settings-item" onclick="UISettings.manualSync()" style="cursor:pointer;color:var(--primary);font-weight:600">立即同步</div>';
+      html += '</div>';
 
       if (pendingRequests.length > 0) {
         html += '<div class="settings-section-title">加入审核</div>';
@@ -102,16 +114,37 @@ var UISettings = (function (baseUISettings) {
         });
         html += '</div>';
       }
-
-      html += '<div class="settings-section-title">备份</div>';
-      html += '<div class="settings-group">';
-      html += '<div class="settings-item" onclick="UISettings.exportData()" style="cursor:pointer"><div class="si-label">导出全部数据</div><span class="si-arrow">→</span></div>';
-      html += '<div class="settings-item" onclick="document.getElementById(\'import-file\').click()" style="cursor:pointer"><div class="si-label">导入备份</div><span class="si-arrow">→</span></div>';
-      html += '</div>';
       html += '<input type="file" id="import-file" accept=".json" style="display:none" onchange="UISettings.importData(event)">';
 
       container.innerHTML = html;
     });
+  }
+
+  function renderNotificationSectionBlock() {
+    if (!window.AppNotifications || !AppNotifications.getState) return '';
+    var state = AppNotifications.getState();
+    var html = '';
+    html += '<div class="settings-group">';
+    html += '<div class="settings-item" onclick="App.navigate(\'notifications\')" style="cursor:pointer">';
+    html += '<div style="flex:1">';
+    html += '<div class="si-label">消息提醒';
+    if (state.unreadCount > 0) {
+      html += '<span class="notification-badge">' + state.unreadCount + '</span>';
+    }
+    html += '</div>';
+    html += '<div class="si-value" style="margin-top:6px">' + escapeHtml(buildNotificationSummaryText(state)) + '</div>';
+    html += '</div>';
+    html += '<span class="si-arrow">查看 →</span>';
+    html += '</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function buildNotificationSummaryText(state) {
+    if (state.unreadCount > 0) return '有 ' + state.unreadCount + ' 条未读提醒，点击查看详情';
+    if (state.recordEnabled === false) return '家庭记录提醒已关闭';
+    if (state.supported && state.systemEnabled && state.permission === 'granted') return '系统通知已开启';
+    return '点击查看提醒详情和通知设置';
   }
 
   function renderBabyCard(baby, isCurrentBaby) {
@@ -128,20 +161,20 @@ var UISettings = (function (baseUISettings) {
     }
     html += '</div>';
     html += '<div class="bi-birthday">' + escapeHtml(formatBabySubtitle(baby)) + '</div>';
-    html += '</div><span class="si-arrow">→</span></div>';
+    html += '</div><span class="si-arrow">编辑 →</span></div>';
     return html;
   }
 
   function renderPendingRequestItem(request) {
     var name = request.display_name || request.role || '新成员';
-    var role = request.display_name || request.role || '未填写';
+    var role = request.role || '未填写';
     var html = '';
     html += '<div class="settings-item" style="display:block">';
     html += '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">';
     html += '<div>';
     html += '<div class="si-label" style="font-weight:700">' + escapeHtml(name) + '</div>';
-    html += '<div class="ti-detail" style="margin-top:6px">称呼：' + escapeHtml(role) + '</div>';
-    html += '<div class="ti-detail">账号：' + escapeHtml(formatJoinRequesterAccount(request)) + '</div>';
+    html += '<div class="ti-detail" style="margin-top:6px">申请称呼：' + escapeHtml(role) + '</div>';
+    html += '<div class="ti-detail">申请账号：' + escapeHtml(formatJoinRequesterAccount(request)) + '</div>';
     html += '<div class="ti-detail">申请时间：' + escapeHtml(formatDateTime(request.created_at)) + '</div>';
     html += '</div>';
     html += '<div style="display:flex;gap:8px;flex-shrink:0">';
@@ -184,7 +217,7 @@ var UISettings = (function (baseUISettings) {
 
     if (status.mode === 'cloud-ready') {
       modeLabel = status.syncing ? '正在同步' : '云端已连接';
-      detail = '已连接 Supabase，可以创建家庭、提交加入申请，并在多设备间同步。';
+      detail = '已连接 Supabase，可创建家庭、提交加入申请，并在多设备间同步。';
     } else if (status.mode === 'cloud-pending-auth') {
       modeLabel = '等待登录';
       detail = '当前项目已经连接 Supabase，但你还没有完成登录。登录后才能恢复家庭、提交加入申请和同步数据。';

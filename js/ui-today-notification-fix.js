@@ -15,7 +15,7 @@ if (window.UIToday) {
 
       syncPill.insertAdjacentHTML(
         'afterend',
-        '<button id="today-notification-card" class="today-notification-card" onclick="App.navigate(\'settings\')">' +
+        '<button id="today-notification-card" class="today-notification-card" onclick="App.navigate(\'notifications\')">' +
           '<span class="today-notification-icon">🔔</span>' +
           '<span class="today-notification-text">有 ' + state.unreadCount + ' 条家庭提醒待处理</span>' +
           '<span class="today-notification-arrow">去查看 →</span>' +

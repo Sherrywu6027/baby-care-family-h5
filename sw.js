@@ -1,4 +1,4 @@
-const CACHE = 'babycare-v11';
+const CACHE = 'babycare-v17';
 const ASSETS = ['./', './index.html', './css/styles.css', './css/empty-state-fix.css', './css/state-ui-fix.css',
   './js/config.js', './js/config-fix.js', './js/db.js', './js/time.js', './js/calc.js', './js/timer.js',
   './js/sync.js', './js/sync-fix.js', './js/notifications.js', './js/sync-signup-fix.js',
@@ -8,7 +8,7 @@ const ASSETS = ['./', './index.html', './css/styles.css', './css/empty-state-fix
   './js/ui-no-baby-route-fix.js', './js/ui-login.js', './js/ui-settings.js', './js/ui-settings-fix.js',
   './js/ui-settings-auth-fix.js', './js/ui-settings-current-baby-fix.js', './js/ui-settings-form-fix.js',
   './js/ui-settings-family-fix.js', './js/ui-settings-pending-account-fix.js', './js/ui-settings-mobile-confirm-fix.js',
-  './js/ui-settings-sync-fix.js', './js/ui-settings-notification-fix.js', './js/ui-nav-notification-fix.js',
+  './js/ui-settings-sync-fix.js', './js/ui-settings-notification-fix.js', './js/ui-notifications.js', './js/ui-nav-notification-fix.js',
   './js/ui-mobile-interaction-fix.js', './js/ui-unsaved-modal-guard-fix.js', './js/ui-sticky-modal-actions-fix.js',
   './js/ui-feedback-sheet-fix.js', './js/ui-text-fix.js', './js/ui-copy-fix.js', './js/ui-today-notification-fix.js',
   './js/app.js'];
@@ -37,6 +37,7 @@ const NETWORK_FIRST = [
   './js/ui-settings-form-fix.js',
   './js/ui-settings-family-fix.js',
   './js/ui-settings-notification-fix.js',
+  './js/ui-notifications.js',
   './js/app.js'
 ];
 

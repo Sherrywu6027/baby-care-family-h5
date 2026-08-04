@@ -457,9 +457,9 @@ var UIToday = (function () {
     var totalSec = totalMin * 60;
     var dateStr = document.getElementById('direct-date').value;
     var timeStr = document.getElementById('direct-time').value;
-    var startDate = new Date(dateStr + 'T' + timeStr);
-    var startISO = startDate.toISOString();
-    var endISO = new Date(startDate.getTime() + totalSec * 1000).toISOString();
+    var startMs = TimeUtil.getChinaDateTimeMs(dateStr, timeStr);
+    var startISO = new Date(startMs).toISOString();
+    var endISO = new Date(startMs + totalSec * 1000).toISOString();
     var note = document.getElementById('direct-note').value;
     DB.getMeta('currentBabyId').then(function (babyId) {
       return DB.addEvent({
@@ -487,7 +487,7 @@ var UIToday = (function () {
     var dateStr = document.getElementById('rec-date').value;
     var timeInput = document.getElementById('rec-time');
     var timeStr = timeInput ? timeInput.value : '12:00';
-    var startISO = new Date(dateStr + 'T' + timeStr).toISOString();
+    var startISO = TimeUtil.makeLocalIsoFromChinaDateTime(dateStr, timeStr);
     var event = { type: type, start_time: startISO, baby_id: null };
 
     var amt = document.getElementById('rec-amount');

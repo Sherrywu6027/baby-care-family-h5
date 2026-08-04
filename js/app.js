@@ -66,7 +66,7 @@ var App = (function () {
         }));
       });
     }).catch(function () {}).finally(function () {
-      navigator.serviceWorker.register('./sw.js?v=20260804-8').catch(function () {});
+      navigator.serviceWorker.register('./sw.js?v=20260804-14').catch(function () {});
     });
   }
 
@@ -174,6 +174,18 @@ var App = (function () {
         stopTodaySnapshotObserver();
         UISettings.render(main);
         break;
+      case 'notifications':
+        stopTodaySnapshotObserver();
+        if (window.UINotifications && UINotifications.render) {
+          UINotifications.render(main);
+        }
+        break;
+      case 'notifications-settings':
+        stopTodaySnapshotObserver();
+        if (window.UINotifications && UINotifications.renderSettings) {
+          UINotifications.renderSettings(main);
+        }
+        break;
       default:
         stopTodaySnapshotObserver();
         if (authState.loggedIn) {
@@ -187,7 +199,7 @@ var App = (function () {
 
   function maybeAutoSync(done, hash) {
     if (!done) return;
-    if (hash !== 'today' && hash !== 'settings' && hash !== 'log' && hash !== 'stats') return;
+    if (hash !== 'today' && hash !== 'settings' && hash !== 'notifications' && hash !== 'notifications-settings' && hash !== 'log' && hash !== 'stats') return;
     var now = Date.now();
     if (now - lastAutoSyncAt < 15000) return;
     lastAutoSyncAt = now;
@@ -311,7 +323,28 @@ var App = (function () {
   }
 
   function navigate(route) {
+    applyPendingNavState(route);
+    renderRouteTransition(route);
     location.hash = '#/' + route;
+  }
+
+  function applyPendingNavState(route) {
+    var navs = document.querySelectorAll('.bottom-nav button');
+    navs.forEach(function (nav) {
+      nav.classList.remove('active');
+    });
+    var activeNav = document.querySelector('.bottom-nav button[data-route="' + route + '"]');
+    if (activeNav) activeNav.classList.add('active');
+  }
+
+  function renderRouteTransition(route) {
+    if (!main) return;
+    if (route === 'settings' || route === 'notifications' || route === 'notifications-settings' || route === 'log' || route === 'stats') {
+      main.innerHTML = ''
+        + '<div class="today-skeleton-card"><div class="today-skeleton-line w-40"></div><div class="today-skeleton-line w-70"></div></div>'
+        + '<div class="today-skeleton-card"><div class="today-skeleton-line w-85"></div><div class="today-skeleton-line w-75"></div><div class="today-skeleton-line w-50"></div></div>'
+        + '<div class="today-skeleton-card"><div class="today-skeleton-line w-70"></div><div class="today-skeleton-line w-85"></div></div>';
+    }
   }
 
   function requestSync(reason) {

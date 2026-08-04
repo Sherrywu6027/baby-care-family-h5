@@ -43,6 +43,22 @@ var TimeUtil = (function () {
     };
   }
 
+  function parseTimeValue(timeValue) {
+    var match = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(String(timeValue || '00:00'));
+    if (!match) {
+      return {
+        hours: 0,
+        minutes: 0,
+        seconds: 0
+      };
+    }
+    return {
+      hours: Number(match[1]) || 0,
+      minutes: Number(match[2]) || 0,
+      seconds: Number(match[3]) || 0
+    };
+  }
+
   function todayChinaDate() {
     return formatToParts(Date.now()).dateKey;
   }
@@ -61,8 +77,22 @@ var TimeUtil = (function () {
     return formatToParts(range.startMs + ((Number(offsetDays) || 0) * DAY_MS)).dateKey;
   }
 
+  function getChinaDateTimeMs(dateKey, timeValue) {
+    var dateParts = parseDateKey(dateKey);
+    var timeParts = parseTimeValue(timeValue);
+    return Date.UTC(
+      dateParts.year,
+      dateParts.month - 1,
+      dateParts.day,
+      timeParts.hours - 8,
+      timeParts.minutes,
+      timeParts.seconds,
+      0
+    );
+  }
+
   function makeLocalIsoFromChinaDateTime(dateKey, timeValue) {
-    return new Date(String(dateKey || '') + 'T' + String(timeValue || '00:00')).toISOString();
+    return new Date(getChinaDateTimeMs(dateKey, timeValue)).toISOString();
   }
 
   function getEventChinaDateKey(event) {
@@ -91,6 +121,7 @@ var TimeUtil = (function () {
     toChinaDateParts: formatToParts,
     getChinaDayRange: getChinaDayRange,
     shiftChinaDate: shiftChinaDate,
+    getChinaDateTimeMs: getChinaDateTimeMs,
     makeLocalIsoFromChinaDateTime: makeLocalIsoFromChinaDateTime,
     getEventChinaDateKey: getEventChinaDateKey,
     formatChinaDateLabel: formatChinaDateLabel,

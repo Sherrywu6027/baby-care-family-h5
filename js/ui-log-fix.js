@@ -198,8 +198,8 @@ var UILog = (function () {
     var dateStr = document.getElementById('edit-date').value;
     var timeInput = document.getElementById('edit-time');
     var timeStr = timeInput ? timeInput.value : '12:00';
-    var startDate = new Date(dateStr + 'T' + timeStr);
     updates.start_time = TimeUtil.makeLocalIsoFromChinaDateTime(dateStr, timeStr);
+    var startMs = TimeUtil.getChinaDateTimeMs(dateStr, timeStr);
 
     var amount = document.getElementById('edit-amount');
     if (amount) updates.amount_ml = parseInt(amount.value, 10) || 0;
@@ -215,7 +215,7 @@ var UILog = (function () {
     if (duration) {
       updates.duration_min = parseInt(duration.value, 10) || 0;
       updates.duration_sec = updates.duration_min * 60;
-      updates.end_time = new Date(startDate.getTime() + updates.duration_sec * 1000).toISOString();
+      updates.end_time = new Date(startMs + updates.duration_sec * 1000).toISOString();
     }
 
     var left = document.getElementById('edit-left');
@@ -227,7 +227,7 @@ var UILog = (function () {
       updates.left_sec = updates.left_min * 60;
       updates.right_sec = updates.right_min * 60;
       updates.duration_sec = updates.left_sec + updates.right_sec;
-      updates.end_time = new Date(startDate.getTime() + updates.duration_sec * 1000).toISOString();
+      updates.end_time = new Date(startMs + updates.duration_sec * 1000).toISOString();
     }
 
     var height = document.getElementById('edit-height');

@@ -2,13 +2,38 @@
  * calc.js - pure frontend calculation helpers
  */
 var Calc = (function () {
+  var FEED_FUTURE_GRACE_MS = 60 * 1000;
+
   function timeSinceLastFeed(babyId) {
-    return DB.getRecentFeeds(babyId, 1).then(function (feeds) {
+    return DB.getRecentFeeds(babyId, 10).then(function (feeds) {
       if (!feeds || feeds.length === 0) return null;
-      var last = feeds[0];
-      var refTime = getFeedReferenceTime(last);
-      return Date.now() - refTime.getTime();
+      var nowMs = Date.now();
+      var chosen = pickLatestValidFeed(feeds, nowMs);
+      if (!chosen) return null;
+      return Math.max(0, nowMs - chosen.refMs);
     });
+  }
+
+  function pickLatestValidFeed(feeds, nowMs) {
+    var fallbackFuture = null;
+    for (var i = 0; i < feeds.length; i += 1) {
+      var event = feeds[i];
+      var refMs = getFeedReferenceTime(event).getTime();
+      if (!refMs) continue;
+      if (refMs <= nowMs + FEED_FUTURE_GRACE_MS) {
+        return {
+          event: event,
+          refMs: refMs
+        };
+      }
+      if (!fallbackFuture || refMs < fallbackFuture.refMs) {
+        fallbackFuture = {
+          event: event,
+          refMs: refMs
+        };
+      }
+    }
+    return fallbackFuture;
   }
 
   function calcToday(babyId) {
@@ -101,6 +126,13 @@ var Calc = (function () {
   }
 
   function formatTime(isoStr) {
+    if (window.TimeUtil && TimeUtil.formatChinaDateTime) {
+      var text = TimeUtil.formatChinaDateTime(isoStr);
+      var match = /(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(text);
+      if (match) {
+        return String(match[1]).padStart(2, '0') + ':' + String(match[2]).padStart(2, '0');
+      }
+    }
     var date = new Date(isoStr);
     return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
   }
