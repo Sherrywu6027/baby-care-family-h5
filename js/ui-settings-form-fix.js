@@ -1,6 +1,6 @@
-var UISettings = (function (BaseUISettings) {
+var UISettings = (function (baseUISettings) {
   function renderWelcome(container) {
-    BaseUISettings.renderWelcome(container);
+    baseUISettings.renderWelcome(container);
     setTimeout(enhanceWelcomeForms, 0);
   }
 
@@ -32,7 +32,7 @@ var UISettings = (function (BaseUISettings) {
     if (!role) setFieldError('welcome-create-role', '请填写你的称呼');
     if (!name || !birthday || !role) return;
 
-    BaseUISettings.createFamilyFromWelcome();
+    baseUISettings.createFamilyFromWelcome();
   }
 
   function joinFamilyFromWelcome() {
@@ -51,7 +51,7 @@ var UISettings = (function (BaseUISettings) {
       return;
     }
 
-    BaseUISettings.joinFamilyFromWelcome();
+    baseUISettings.joinFamilyFromWelcome();
   }
 
   function addBaby() {
@@ -66,8 +66,8 @@ var UISettings = (function (BaseUISettings) {
 
   function openBabyForm(baby) {
     var isEdit = !!baby;
-    var current = baby || { name: '', birthday: '', avatar: '🍼' };
-    var avatars = ['🍼', '🐣', '👶', '🧸', '🌼', '🎀', '🫧'];
+    var current = baby || { name: '', birthday: '', avatar: '👶' };
+    var avatars = ['👶', '🍼', '👧', '🧸', '🌙', '🎀', '👦'];
     var html = '<div class="modal-overlay" onclick="if(event.target===this)UIToday.closeModal()"><div class="modal-sheet">';
     html += '<div class="modal-handle"></div><div class="modal-title">' + (isEdit ? '编辑宝宝' : '添加宝宝') + '</div>';
     html += '<div class="form-group"><label class="form-label">头像</label><div style="display:flex;gap:8px;flex-wrap:wrap">';
@@ -96,7 +96,7 @@ var UISettings = (function (BaseUISettings) {
     if (!birthday) setFieldError('baby-birthday', '请选择出生日期');
     if (!name || !birthday) return;
 
-    BaseUISettings.saveBaby(id);
+    baseUISettings.saveBaby(id);
   }
 
   function openEditMember(memberId) {
@@ -124,7 +124,7 @@ var UISettings = (function (BaseUISettings) {
       setFieldError('member-display-name', '请填写称呼');
       return;
     }
-    BaseUISettings.saveMemberProfile(memberId, memberAuthUser);
+    baseUISettings.saveMemberProfile(memberId, memberAuthUser);
   }
 
   function finishJoinCreateBaby() {
@@ -139,7 +139,7 @@ var UISettings = (function (BaseUISettings) {
     if (!birthday) setFieldError('join-baby-birthday', '请选择出生日期');
     if (!name || !birthday) return;
 
-    BaseUISettings.finishJoinCreateBaby();
+    baseUISettings.finishJoinCreateBaby();
   }
 
   function ensureFieldError(id) {
@@ -200,8 +200,8 @@ var UISettings = (function (BaseUISettings) {
   }
 
   var next = {};
-  Object.keys(BaseUISettings).forEach(function (key) {
-    next[key] = BaseUISettings[key];
+  Object.keys(baseUISettings).forEach(function (key) {
+    next[key] = baseUISettings[key];
   });
   next.renderWelcome = renderWelcome;
   next.createFamilyFromWelcome = createFamilyFromWelcome;

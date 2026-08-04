@@ -354,6 +354,11 @@ var Sync = (function (BaseSync) {
     });
   }
 
+  function onStateChange(listener) {
+    if (BaseSync.onStateChange) return BaseSync.onStateChange(listener);
+    return function () {};
+  }
+
   function refreshAuthState() {
     if (!BaseSync.isConfigured()) {
       authState = {
@@ -468,6 +473,7 @@ var Sync = (function (BaseSync) {
     signOut: signOut,
     restoreFamilyContext: restoreFamilyContext,
     sync: sync,
+    onStateChange: onStateChange,
     createFamily: createFamily,
     joinFamily: joinFamily,
     getJoinRequestStatus: getJoinRequestStatus,

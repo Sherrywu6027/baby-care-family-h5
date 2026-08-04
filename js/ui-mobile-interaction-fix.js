@@ -250,8 +250,11 @@ function clearFormErrors(ids) {
 function bindClearOnInput(ids) {
   (ids || []).forEach(function (id) {
     var input = document.getElementById(id);
-    if (!input || input.dataset.fieldErrorBound === '1') return;
+    if (!input) return;
+    if (!input.dataset) input.dataset = {};
+    if (input.dataset.fieldErrorBound === '1') return;
     input.dataset.fieldErrorBound = '1';
+    if (typeof input.addEventListener !== 'function') return;
     input.addEventListener('input', function () {
       clearFieldError(id);
     });

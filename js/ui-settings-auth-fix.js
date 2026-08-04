@@ -1,8 +1,8 @@
-var UISettings = (function (BaseUISettings) {
+var UISettings = (function (baseUISettings) {
   var pendingResultClose = null;
 
   function render(container) {
-    BaseUISettings.render(container);
+    baseUISettings.render(container);
   }
 
   function scheduleAccountSection(container, attempt) {
@@ -14,9 +14,15 @@ var UISettings = (function (BaseUISettings) {
 
   function injectAccountSection(container, attempt) {
     if (!container) return;
-    Sync.getAuthState().then(function (authState) {
-      if (!authState || !authState.loggedIn) return;
+    Promise.all([
+      Sync.getAuthState().catch(function () { return null; }),
+      DB.getMeta('authUserId').catch(function () { return null; })
+    ]).then(function (values) {
+      var authState = values[0] || null;
+      var authUserId = values[1] || null;
+      if ((!authState || !authState.loggedIn) && !authUserId) return;
       if (container.querySelector('.settings-account-section')) return;
+
       var anchor = container.querySelector('.log-header');
       if (!anchor || !anchor.parentNode) {
         if ((attempt || 0) < 8) scheduleAccountSection(container, (attempt || 0) + 1);
@@ -25,7 +31,7 @@ var UISettings = (function (BaseUISettings) {
 
       var section = document.createElement('div');
       section.className = 'settings-account-section';
-      section.innerHTML = buildAccountHtml(authState.email || '');
+      section.innerHTML = buildAccountHtml((authState && authState.email) || '');
       anchor.parentNode.insertBefore(section, anchor.nextSibling);
       injectDiagnosticSection(section);
     });
@@ -82,7 +88,7 @@ var UISettings = (function (BaseUISettings) {
     if (state.error) {
       html += '<div class="ti-detail" style="margin-top:6px;color:var(--danger);word-break:break-all">' + escapeHtml(state.error) + '</div>';
     } else if (!membership) {
-      html += '<div class="ti-detail" style="margin-top:6px">空结果。通常表示当前登录 UID 还没有绑定到任何 members.auth_user。</div>';
+      html += '<div class="ti-detail" style="margin-top:6px">空结果。通常表示当前登录 UID 还没有绑定到任何 `members.auth_user`。</div>';
     } else {
       html += '<div class="ti-detail" style="margin-top:6px;word-break:break-all">family_id: ' + escapeHtml(membership.result_family_id || membership.family_id || '') + '</div>';
       html += '<div class="ti-detail" style="word-break:break-all">family_code: ' + escapeHtml(membership.result_family_code || membership.family_code || '') + '</div>';
@@ -105,6 +111,7 @@ var UISettings = (function (BaseUISettings) {
         error: 'Supabase client 未就绪'
       });
     }
+
     return client.rpc('get_my_membership').then(function (result) {
       if (result && result.error) {
         return { membership: null, error: result.error.message || String(result.error) };
@@ -189,6 +196,7 @@ var UISettings = (function (BaseUISettings) {
         });
         return;
       }
+
       return Sync.resetPassword(email).then(function (result) {
         if (!result || !result.success) {
           openResultSheet({
@@ -221,6 +229,7 @@ var UISettings = (function (BaseUISettings) {
         });
         return;
       }
+
       return loadMembershipDiagnostic().then(function (diagnostic) {
         var membership = diagnostic && diagnostic.membership ? diagnostic.membership : null;
         if (!membership) {
@@ -232,6 +241,7 @@ var UISettings = (function (BaseUISettings) {
           });
           return;
         }
+
         var familyId = membership.result_family_id || membership.family_id || null;
         var familyCode = membership.result_family_code || membership.family_code || null;
         if (!familyId || !familyCode) {
@@ -243,6 +253,7 @@ var UISettings = (function (BaseUISettings) {
           });
           return;
         }
+
         return DB.setMeta('familyId', familyId).then(function () {
           return DB.setMeta('familyCode', familyCode);
         }).then(function () {
@@ -312,8 +323,8 @@ var UISettings = (function (BaseUISettings) {
   }
 
   var next = {};
-  Object.keys(BaseUISettings).forEach(function (key) {
-    next[key] = BaseUISettings[key];
+  Object.keys(baseUISettings).forEach(function (key) {
+    next[key] = baseUISettings[key];
   });
   next.render = render;
   next.openPasswordDialog = openPasswordDialog;

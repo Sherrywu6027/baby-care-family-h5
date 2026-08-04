@@ -148,6 +148,37 @@ var Timer = (function () {
     persist();
   }
 
+  function adjustStartTime(type, startMs) {
+    var timer = timers[type];
+    if (!timer) return null;
+    if (typeof startMs !== 'number' || !isFinite(startMs)) return null;
+    if (type === 'milk_direct') {
+      return adjustDirectStartTime(timer, startMs);
+    }
+    timer.startTime = startMs;
+    persist();
+    return getActive(type);
+  }
+
+  function adjustDirectStartTime(timer, startMs) {
+    var delta = startMs - timer.startTime;
+    if (!delta) return getActive('milk_direct');
+
+    timer.startTime = startMs;
+    (timer.segments || []).forEach(function (segment) {
+      if (!segment) return;
+      if (typeof segment.startTime === 'number') segment.startTime += delta;
+      if (typeof segment.endTime === 'number') segment.endTime += delta;
+    });
+
+    persist();
+    return getActive('milk_direct');
+  }
+
+  function adjustPumpStartTime(startMs) {
+    return adjustStartTime('pump', startMs);
+  }
+
   function getActive(type) {
     if (type) return toPublicState(timers[type]);
     return toPublicState(timers[firstActiveType()]);
@@ -307,6 +338,8 @@ var Timer = (function () {
     start: start,
     stop: stop,
     cancel: cancel,
+    adjustStartTime: adjustStartTime,
+    adjustPumpStartTime: adjustPumpStartTime,
     pause: pause,
     resume: resume,
     getActive: getActive,

@@ -1,4 +1,4 @@
-var UISettings = (function (BaseUISettings) {
+var UISettings = (function (baseUISettings) {
   function render(container) {
     Promise.all([
       DB.getBabies(),
@@ -7,7 +7,8 @@ var UISettings = (function (BaseUISettings) {
       DB.getMeta('familyCode'),
       Sync.listPendingJoinRequests(),
       Sync.listFamilyMembers(),
-      DB.getMeta('authUserId')
+      DB.getMeta('authUserId'),
+      Sync.getAuthState()
     ]).then(function (results) {
       var babies = results[0] || [];
       var currentBabyId = results[1] || null;
@@ -16,6 +17,7 @@ var UISettings = (function (BaseUISettings) {
       var pendingRequests = results[4] || [];
       var memberState = results[5] || { success: true, members: [] };
       var authUserId = results[6] || null;
+      var authState = results[7] || null;
       var members = memberState.members || [];
       var currentMember = findCurrentMember(members, authUserId);
       var isCreator = !!(currentMember && currentMember.is_creator);
@@ -57,6 +59,16 @@ var UISettings = (function (BaseUISettings) {
       html += '<div class="settings-item" onclick="UISettings.joinFamily()" style="cursor:pointer;color:var(--primary);font-weight:600">输入家庭码加入</div>';
       html += '</div>';
 
+      if ((authState && authState.loggedIn) || (authState && authState.email) || authUserId) {
+        html += '<div class="settings-section-title">账号与安全</div>';
+        html += '<div class="settings-group">';
+        html += '<div class="settings-item"><div class="si-label">当前邮箱</div><div class="si-value" style="font-weight:600">' + escapeHtml((authState && authState.email) || '已登录') + '</div></div>';
+        html += '<div class="settings-item" onclick="UISettings.openPasswordDialog()" style="cursor:pointer;color:var(--primary);font-weight:600">设置或修改密码</div>';
+        html += '<div class="settings-item" onclick="UISettings.sendPasswordReset()" style="cursor:pointer;color:var(--primary);font-weight:600">忘记密码 / 发送重置邮件</div>';
+        html += '<div class="settings-item" onclick="UISettings.signOut()" style="cursor:pointer;color:var(--danger);font-weight:600">仅退出登录</div>';
+        html += '</div>';
+      }
+
       if (familyCode) {
         html += '<div class="settings-section-title">成员管理</div>';
         html += '<div class="settings-group">';
@@ -76,7 +88,7 @@ var UISettings = (function (BaseUISettings) {
         if (currentMember) {
           html += '<div class="settings-section-title">家庭操作</div>';
           html += '<div class="settings-group">';
-          html += '<div class="settings-item" onclick="UISettings.openEditMember(\'' + currentMember.id + '\')" style="cursor:pointer"><div class="si-label">修改我的称呼</div><span class="si-arrow">›</span></div>';
+          html += '<div class="settings-item" onclick="UISettings.openEditMember(\'' + escapeJs(currentMember.id) + '\')" style="cursor:pointer"><div class="si-label">修改我的称呼</div><span class="si-arrow">→</span></div>';
           html += '<div class="settings-item" onclick="UISettings.leaveFamily()" style="cursor:pointer;color:var(--danger);font-weight:700">退出当前家庭（谨慎）</div>';
           html += '</div>';
         }
@@ -93,8 +105,8 @@ var UISettings = (function (BaseUISettings) {
 
       html += '<div class="settings-section-title">备份</div>';
       html += '<div class="settings-group">';
-      html += '<div class="settings-item" onclick="UISettings.exportData()" style="cursor:pointer"><div class="si-label">导出全部数据</div><span class="si-arrow">›</span></div>';
-      html += '<div class="settings-item" onclick="document.getElementById(\'import-file\').click()" style="cursor:pointer"><div class="si-label">导入备份</div><span class="si-arrow">›</span></div>';
+      html += '<div class="settings-item" onclick="UISettings.exportData()" style="cursor:pointer"><div class="si-label">导出全部数据</div><span class="si-arrow">→</span></div>';
+      html += '<div class="settings-item" onclick="document.getElementById(\'import-file\').click()" style="cursor:pointer"><div class="si-label">导入备份</div><span class="si-arrow">→</span></div>';
       html += '</div>';
       html += '<input type="file" id="import-file" accept=".json" style="display:none" onchange="UISettings.importData(event)">';
 
@@ -112,11 +124,11 @@ var UISettings = (function (BaseUISettings) {
     html += '<div class="baby-info" style="flex:1">';
     html += '<div class="bi-name">' + escapeHtml(baby.name || '宝宝');
     if (isCurrentBaby) {
-      html += '<span style="display:inline-flex;align-items:center;margin-left:8px;padding:1px 7px;border-radius:999px;background:rgba(99,102,241,.08);color:rgba(79,70,229,.82);font-size:.68rem;font-weight:600;letter-spacing:.01em;vertical-align:middle">当前查看中</span>';
+      html += '<span style="display:inline-flex;align-items:center;margin-left:8px;padding:1px 7px;border-radius:999px;background:rgba(99,102,241,.08);color:rgba(79,70,229,.82);font-size:.68rem;font-weight:600;letter-spacing:.01em;vertical-align:middle">当前查看</span>';
     }
     html += '</div>';
     html += '<div class="bi-birthday">' + escapeHtml(formatBabySubtitle(baby)) + '</div>';
-    html += '</div><span class="si-arrow">›</span></div>';
+    html += '</div><span class="si-arrow">→</span></div>';
     return html;
   }
 
@@ -247,8 +259,8 @@ var UISettings = (function (BaseUISettings) {
   }
 
   var next = {};
-  Object.keys(BaseUISettings).forEach(function (key) {
-    next[key] = BaseUISettings[key];
+  Object.keys(baseUISettings).forEach(function (key) {
+    next[key] = baseUISettings[key];
   });
   next.render = render;
   return next;

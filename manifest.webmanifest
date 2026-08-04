@@ -1,7 +1,7 @@
 {
-  "name": "宝宝照顾记录",
+  "name": "宝宝照护记录",
   "short_name": "宝宝记录",
-  "description": "单手秒记宝宝日常：喂奶、换尿片、睡眠、吸奶计时",
+  "description": "单手秒记宝宝日常：喂奶、换尿布、睡眠、吸奶计时。",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f5f5f9",

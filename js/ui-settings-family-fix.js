@@ -1,4 +1,4 @@
-var UISettings = (function (BaseUISettings) {
+var UISettings = (function (baseUISettings) {
   function render(container) {
     Promise.all([
       Sync.getAuthState(),
@@ -12,31 +12,31 @@ var UISettings = (function (BaseUISettings) {
         return Sync.restoreFamilyContext({ silent: true }).catch(function () {
           return null;
         }).then(function () {
-          return BaseUISettings.render(container);
+          return baseUISettings.render(container);
         });
       }
-      return BaseUISettings.render(container);
+      return baseUISettings.render(container);
     });
   }
 
   function addBaby() {
     ensureFamilyReady().then(function (ready) {
       if (!ready) return;
-      BaseUISettings.addBaby();
+      baseUISettings.addBaby();
     });
   }
 
   function editBaby(id) {
     ensureFamilyReady().then(function (ready) {
       if (!ready) return;
-      BaseUISettings.editBaby(id);
+      baseUISettings.editBaby(id);
     });
   }
 
   function saveBaby(id) {
     ensureFamilyReady().then(function (ready) {
       if (!ready) return;
-      BaseUISettings.saveBaby(id);
+      baseUISettings.saveBaby(id);
     });
   }
 
@@ -72,8 +72,8 @@ var UISettings = (function (BaseUISettings) {
   }
 
   var next = {};
-  Object.keys(BaseUISettings).forEach(function (key) {
-    next[key] = BaseUISettings[key];
+  Object.keys(baseUISettings).forEach(function (key) {
+    next[key] = baseUISettings[key];
   });
   next.render = render;
   next.addBaby = addBaby;

@@ -6,6 +6,7 @@ var Sync = (function () {
   var syncPromise = null;
   var lastSync = null;
   var lastError = '';
+  var stateListeners = [];
   var remoteSchemaMode = 'unknown';
   var loaderPromise = null;
   var CDN_URLS = [
@@ -90,9 +91,28 @@ var Sync = (function () {
     };
   }
 
+  function emitSyncState(state) {
+    stateListeners.forEach(function (listener) {
+      try {
+        listener(state);
+      } catch (e) {}
+    });
+  }
+
+  function onStateChange(listener) {
+    if (typeof listener !== 'function') return function () {};
+    stateListeners.push(listener);
+    return function () {
+      stateListeners = stateListeners.filter(function (item) {
+        return item !== listener;
+      });
+    };
+  }
+
   function sync(options) {
     options = options || {};
     if (syncPromise) return syncPromise;
+    if (!navigator.onLine) emitSyncState('offline');
     syncPromise = performSync(options).finally(function () {
       syncPromise = null;
       syncing = false;
@@ -104,9 +124,11 @@ var Sync = (function () {
     options = options || {};
     syncing = true;
     lastError = '';
+    emitSyncState('syncing');
 
     if (!configured) {
       syncing = false;
+      emitSyncState('idle');
       return Promise.resolve({
         synced: 0,
         skipped: true,
@@ -126,8 +148,8 @@ var Sync = (function () {
           var finalSyncAt = ctx.maxUpdatedAt || new Date().toISOString();
           lastSync = finalSyncAt;
           return DB.setLastSyncAt(finalSyncAt).then(function () {
-            return {
-              synced: (pushResult.synced || 0) + (pullResult.synced || 0),
+          return {
+            synced: (pushResult.synced || 0) + (pullResult.synced || 0),
               pushed: pushResult,
               pulled: pullResult,
               lastSync: finalSyncAt,
@@ -138,12 +160,16 @@ var Sync = (function () {
       });
     }).catch(function (error) {
       lastError = getErrorMessage(error);
+      emitSyncState(navigator.onLine ? 'error' : 'offline');
       return {
         synced: 0,
         skipped: true,
         reason: 'error',
         error: lastError
       };
+    }).then(function (result) {
+      if (result && result.reason !== 'error') emitSyncState(navigator.onLine ? 'idle' : 'offline');
+      return result;
     });
   }
 
@@ -929,6 +955,7 @@ var Sync = (function () {
     joinFamily: joinFamily,
     getJoinRequestStatus: getJoinRequestStatus,
     activateApprovedJoin: activateApprovedJoin,
+    onStateChange: onStateChange,
     listPendingJoinRequests: listPendingJoinRequests,
     reviewJoinRequest: reviewJoinRequest,
     listFamilyMembers: listFamilyMembers,

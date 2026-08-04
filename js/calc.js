@@ -1,9 +1,7 @@
 /**
- * calc.js — 计算逻辑（纯前端，离线可用）
+ * calc.js - pure frontend calculation helpers
  */
 var Calc = (function () {
-
-  // 距上次喝奶（毫秒），返回 null 表示无记录
   function timeSinceLastFeed(babyId) {
     return DB.getRecentFeeds(babyId, 1).then(function (feeds) {
       if (!feeds || feeds.length === 0) return null;
@@ -13,9 +11,8 @@ var Calc = (function () {
     });
   }
 
-  // 今日汇总
   function calcToday(babyId) {
-    var today = new Date().toISOString().slice(0, 10);
+    var today = window.TimeUtil ? TimeUtil.todayChinaDate() : new Date().toISOString().slice(0, 10);
     return DB.getEventsByDay(babyId, today).then(function (events) {
       var summary = {
         feedMl: 0,
@@ -23,6 +20,7 @@ var Calc = (function () {
         sleepMin: 0,
         diaperCount: 0,
         diaperStool: 0,
+        diaperStoolAmount: 0,
         pumpMl: 0,
         pumpCount: 0,
         weightCount: 0,
@@ -30,31 +28,31 @@ var Calc = (function () {
         directCount: 0,
         directSec: 0
       };
-      events.forEach(function (e) {
-        switch (e.type) {
+      events.forEach(function (event) {
+        switch (event.type) {
           case 'formula':
-            summary.feedMl += (e.amount_ml || 0);
-            summary.feedCount++;
-            break;
           case 'milk_bottle':
-            summary.feedMl += (e.amount_ml || 0);
+            summary.feedMl += (event.amount_ml || 0);
             summary.feedCount++;
             break;
           case 'milk_direct':
             summary.feedCount++;
             summary.directCount++;
-            summary.directSec += getDurationSec(e);
-            summary.directMin += ((e.duration_min != null) ? e.duration_min : (getDurationSec(e) / 60));
+            summary.directSec += getDurationSec(event);
+            summary.directMin += event.duration_min != null ? event.duration_min : (getDurationSec(event) / 60);
             break;
           case 'sleep':
-            summary.sleepMin += ((e.duration_min != null) ? e.duration_min : (getDurationSec(e) / 60));
+            summary.sleepMin += event.duration_min != null ? event.duration_min : (getDurationSec(event) / 60);
             break;
           case 'diaper':
             summary.diaperCount++;
-            if (e.stool || e.stool_amount) summary.diaperStool++;
+            if (event.stool || event.stool_amount) {
+              summary.diaperStool++;
+              summary.diaperStoolAmount += Number(event.stool_amount) || 1;
+            }
             break;
           case 'pump':
-            summary.pumpMl += (e.amount_ml || 0);
+            summary.pumpMl += (event.amount_ml || 0);
             summary.pumpCount++;
             break;
           case 'weight':
@@ -66,100 +64,127 @@ var Calc = (function () {
     });
   }
 
-  // 格式化毫秒为 "Xh Ym" 或 "Ym"
   function formatDuration(ms) {
     if (ms == null) return '--';
     var totalMin = Math.floor(ms / 60000);
-    var h = Math.floor(totalMin / 60);
-    var m = totalMin % 60;
-    if (h > 0) return h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
-    return m + 'm';
+    var hours = Math.floor(totalMin / 60);
+    var mins = totalMin % 60;
+    if (hours > 0) return hours + 'h' + (mins > 0 ? ' ' + mins + 'm' : '');
+    return mins + 'm';
   }
 
-  // 格式化分钟为 "Xh Ym"
   function formatMin(min) {
     if (!min || min <= 0) return '0m';
-    var totalSec = Math.round(min * 60);
-    return formatSeconds(totalSec);
+    return formatSeconds(Math.round(min * 60));
   }
 
   function formatSeconds(totalSec) {
     if (!totalSec || totalSec <= 0) return '0s';
-    var h = Math.floor(totalSec / 3600);
-    var m = Math.floor((totalSec % 3600) / 60);
-    var s = totalSec % 60;
+    var hours = Math.floor(totalSec / 3600);
+    var mins = Math.floor((totalSec % 3600) / 60);
+    var secs = totalSec % 60;
     var parts = [];
-    if (h > 0) parts.push(h + 'h');
-    if (m > 0) parts.push(m + 'm');
-    if (s > 0 || parts.length === 0) parts.push(s + 's');
+    if (hours > 0) parts.push(hours + 'h');
+    if (mins > 0) parts.push(mins + 'm');
+    if (secs > 0 || parts.length === 0) parts.push(secs + 's');
     return parts.join(' ');
   }
 
-  // 格式化倒计时（秒级，显示 mm:ss 或 h:mm:ss）
   function formatCountdown(ms) {
     if (ms == null) return '--';
     var totalSec = Math.floor(ms / 1000);
-    var h = Math.floor(totalSec / 3600);
-    var m = Math.floor((totalSec % 3600) / 60);
-    var s = totalSec % 60;
-    if (h > 0) return h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-    return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    var hours = Math.floor(totalSec / 3600);
+    var mins = Math.floor((totalSec % 3600) / 60);
+    var secs = totalSec % 60;
+    if (hours > 0) return hours + ':' + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+    return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
   }
 
-  // 格式化时间显示 (HH:MM)
   function formatTime(isoStr) {
-    var d = new Date(isoStr);
-    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    var date = new Date(isoStr);
+    return String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
   }
 
-  // 获取日期标签
   function formatDateLabel(date) {
-    var d = date || new Date();
-    var weekdays = ['日', '一', '二', '三', '四', '五', '六'];
-    return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+    if (window.TimeUtil) {
+      var dateKey = date ? TimeUtil.toChinaDateParts(date).dateKey : TimeUtil.todayChinaDate();
+      return TimeUtil.formatChinaDateLabel(dateKey).replace(/\s.+$/, '');
+    }
+    var value = date || new Date();
+    return (value.getMonth() + 1) + '月' + value.getDate() + '日';
   }
 
   function getWeekday(date) {
-    var d = date || new Date();
-    return '周' + ['日', '一', '二', '三', '四', '五', '六'][d.getDay()];
+    if (window.TimeUtil) {
+      return TimeUtil.getChinaWeekdayLabel(date || new Date());
+    }
+    var value = date || new Date();
+    return '周' + ['日', '一', '二', '三', '四', '五', '六'][value.getDay()];
   }
 
-  // 获取最近 N 天的日期数组
   function getLastNDays(n) {
     var days = [];
-    for (var i = n - 1; i >= 0; i--) {
-      var d = new Date();
-      d.setDate(d.getDate() - i);
-      days.push(d.toISOString().slice(0, 10));
+    if (window.TimeUtil) {
+      var today = TimeUtil.todayChinaDate();
+      for (var i = n - 1; i >= 0; i--) {
+        days.push(TimeUtil.shiftChinaDate(today, -i));
+      }
+      return days;
+    }
+    for (var j = n - 1; j >= 0; j--) {
+      var date = new Date();
+      date.setDate(date.getDate() - j);
+      days.push(date.toISOString().slice(0, 10));
     }
     return days;
   }
 
-  // 统计多天数据
   function calcMultiDay(babyId, dateStrs) {
-    return Promise.all(dateStrs.map(function (d) {
-      return DB.getEventsByDay(babyId, d).then(function (events) {
-        var ml = 0, feedCount = 0, sleepMin = 0, diaperCount = 0;
-        events.forEach(function (e) {
-          switch (e.type) {
-            case 'formula': ml += (e.amount_ml || 0); feedCount++; break;
-            case 'milk_bottle': ml += (e.amount_ml || 0); feedCount++; break;
-            case 'milk_direct': feedCount++; break;
-            case 'sleep': sleepMin += ((e.duration_min != null) ? e.duration_min : (getDurationSec(e) / 60)); break;
-            case 'diaper': diaperCount++; break;
+    return Promise.all(dateStrs.map(function (dateKey) {
+      return DB.getEventsByDay(babyId, dateKey).then(function (events) {
+        var ml = 0;
+        var feedCount = 0;
+        var sleepMin = 0;
+        var diaperCount = 0;
+        events.forEach(function (event) {
+          switch (event.type) {
+            case 'formula':
+              ml += (event.amount_ml || 0);
+              feedCount++;
+              break;
+            case 'milk_bottle':
+              ml += (event.amount_ml || 0);
+              feedCount++;
+              break;
+            case 'milk_direct':
+              feedCount++;
+              break;
+            case 'sleep':
+              sleepMin += event.duration_min != null ? event.duration_min : (getDurationSec(event) / 60);
+              break;
+            case 'diaper':
+              diaperCount++;
+              break;
           }
         });
-        return { date: d, ml: ml, feedCount: feedCount, sleepMin: sleepMin, diaperCount: diaperCount };
+        return {
+          date: dateKey,
+          ml: ml,
+          feedCount: feedCount,
+          sleepMin: sleepMin,
+          diaperCount: diaperCount
+        };
       });
     }));
   }
 
-  // 计算天数（宝宝出生几天）
   function daysSinceBirth(birthday) {
     if (!birthday) return null;
-    var b = new Date(birthday);
-    var now = new Date();
-    return Math.floor((now - b) / 86400000);
+    var birthRange = window.TimeUtil ? TimeUtil.getChinaDayRange(birthday) : null;
+    var birthMs = birthRange ? birthRange.startMs : new Date(birthday).getTime();
+    var nowRange = window.TimeUtil ? TimeUtil.getChinaDayRange(TimeUtil.todayChinaDate()) : null;
+    var nowMs = nowRange ? nowRange.startMs : Date.now();
+    return Math.max(0, Math.floor((nowMs - birthMs) / 86400000));
   }
 
   function getAgeMonths(birthday) {
@@ -181,7 +206,9 @@ var Calc = (function () {
       { m: 12, min: 7.7, max: 11.1 }
     ];
     var pick = table[0];
-    table.forEach(function (item) { if (months >= item.m) pick = item; });
+    table.forEach(function (item) {
+      if (months >= item.m) pick = item;
+    });
     return pick;
   }
 
@@ -198,7 +225,9 @@ var Calc = (function () {
       { m: 12, min: 68.6, max: 78.5 }
     ];
     var pick = table[0];
-    table.forEach(function (item) { if (months >= item.m) pick = item; });
+    table.forEach(function (item) {
+      if (months >= item.m) pick = item;
+    });
     return pick;
   }
 
@@ -207,7 +236,7 @@ var Calc = (function () {
     var months = getAgeMonths(birthday) || 0;
     var ref = getChineseHeightReference(months);
     var status = heightValue < ref.min ? '偏低' : (heightValue > ref.max ? '偏高' : '接近参考');
-    return heightValue.toFixed(1) + 'cm · ' + months + '个月中国参考 ' + ref.min.toFixed(1) + '-' + ref.max.toFixed(1) + 'cm · ' + status;
+    return heightValue.toFixed(1) + 'cm / ' + months + '个月中国参考 ' + ref.min.toFixed(1) + '-' + ref.max.toFixed(1) + 'cm / ' + status;
   }
 
   function buildWeightReferenceText(weightValue, birthday) {
@@ -215,7 +244,7 @@ var Calc = (function () {
     var months = getAgeMonths(birthday) || 0;
     var ref = getChineseWeightReference(months);
     var status = weightValue < ref.min ? '偏低' : (weightValue > ref.max ? '偏高' : '接近参考');
-    return weightValue.toFixed(2) + 'kg · ' + months + '个月中国参考 ' + ref.min.toFixed(1) + '-' + ref.max.toFixed(1) + 'kg · ' + status;
+    return weightValue.toFixed(2) + 'kg / ' + months + '个月中国参考 ' + ref.min.toFixed(1) + '-' + ref.max.toFixed(1) + 'kg / ' + status;
   }
 
   function buildGrowthReferenceText(heightValue, weightValue, birthday) {
@@ -226,7 +255,7 @@ var Calc = (function () {
     if (weightValue != null && !isNaN(weightValue) && weightValue > 0) {
       parts.push(buildWeightReferenceText(weightValue, birthday));
     }
-    return parts.join(' · ');
+    return parts.join(' / ');
   }
 
   function getFeedReferenceTime(event) {
@@ -238,49 +267,48 @@ var Calc = (function () {
     return new Date(startMs);
   }
 
-  function getDurationMs(e) {
-    if (!e) return 0;
-    if (needsLegacyDirectManualFix(e)) {
-      var legacyMinutes = (Number(e.left_min) || 0) + (Number(e.right_min) || 0) || (Number(e.duration_min) || 0);
+  function getDurationMs(event) {
+    if (!event) return 0;
+    if (needsLegacyDirectManualFix(event)) {
+      var legacyMinutes = ((Number(event.left_min) || 0) + (Number(event.right_min) || 0)) || (Number(event.duration_min) || 0);
       return Math.round(legacyMinutes * 3600000);
     }
-    return getDurationSec(e) * 1000;
+    return getDurationSec(event) * 1000;
   }
 
-  function needsLegacyDirectManualFix(e) {
-    return !!(e && e.type === 'milk_direct' && !e.end_time && e.duration_min != null && Number(e.duration_min) > 0 && Number(e.duration_min) < 1);
+  function needsLegacyDirectManualFix(event) {
+    return !!(event && event.type === 'milk_direct' && !event.end_time && event.duration_min != null && Number(event.duration_min) > 0 && Number(event.duration_min) < 1);
   }
 
-  function getDurationSec(e) {
-    if (!e) return 0;
-    if (e.duration_sec != null) return Number(e.duration_sec) || 0;
-    if (e.left_sec != null || e.right_sec != null) return (Number(e.left_sec) || 0) + (Number(e.right_sec) || 0);
-    if (e.duration_min != null) return Math.round(Number(e.duration_min || 0) * 60);
+  function getDurationSec(event) {
+    if (!event) return 0;
+    if (event.duration_sec != null) return Number(event.duration_sec) || 0;
+    if (event.left_sec != null || event.right_sec != null) return (Number(event.left_sec) || 0) + (Number(event.right_sec) || 0);
+    if (event.duration_min != null) return Math.round(Number(event.duration_min || 0) * 60);
     return 0;
   }
 
-  // 生成事件描述文本
-  function eventDescription(e) {
-    var type = EVENT_TYPES[e.type] || { label: e.type };
-    if (e.type === 'milk_direct') {
-      var totalSec = getDurationSec(e);
-      var leftSec = e.left_sec != null ? (Number(e.left_sec) || 0) : Math.round(Number(e.left_min || 0) * 60);
-      var rightSec = e.right_sec != null ? (Number(e.right_sec) || 0) : Math.round(Number(e.right_min || 0) * 60);
-      return type.label + ' · ' + formatSeconds(totalSec) + '（左 ' + formatSeconds(leftSec) + ' / 右 ' + formatSeconds(rightSec) + '）';
+  function eventDescription(event) {
+    var type = EVENT_TYPES[event.type] || { label: event.type };
+    if (event.type === 'milk_direct') {
+      var totalSec = getDurationSec(event);
+      var leftSec = event.left_sec != null ? (Number(event.left_sec) || 0) : Math.round(Number(event.left_min || 0) * 60);
+      var rightSec = event.right_sec != null ? (Number(event.right_sec) || 0) : Math.round(Number(event.right_min || 0) * 60);
+      return type.label + ' / ' + formatSeconds(totalSec) + '（左 ' + formatSeconds(leftSec) + ' / 右 ' + formatSeconds(rightSec) + '）';
     }
-    if (e.type === 'weight') {
+    if (event.type === 'weight') {
       var growthParts = [];
-      if (e.height_cm != null && Number(e.height_cm) > 0) growthParts.push(Number(e.height_cm).toFixed(1) + 'cm');
-      if (e.weight_kg != null && Number(e.weight_kg) > 0) growthParts.push(Number(e.weight_kg).toFixed(2) + 'kg');
+      if (event.height_cm != null && Number(event.height_cm) > 0) growthParts.push(Number(event.height_cm).toFixed(1) + 'cm');
+      if (event.weight_kg != null && Number(event.weight_kg) > 0) growthParts.push(Number(event.weight_kg).toFixed(2) + 'kg');
       if (growthParts.length === 0) growthParts.push('未填写');
-      return type.label + ' · ' + growthParts.join(' / ');
+      return type.label + ' / ' + growthParts.join(' / ');
     }
     var parts = [type.label];
-    if (e.amount_ml) parts.push(e.amount_ml + 'ml');
-    if (e.duration_sec != null || e.duration_min != null) parts.push(formatSeconds(getDurationSec(e)));
-    if (e.stool || e.stool_amount) parts.push('💩' + (e.stool_amount ? e.stool_amount : ''));
-    if (e.note && e.type !== 'weight') parts.push(e.note);
-    return parts.join(' · ');
+    if (event.amount_ml) parts.push(event.amount_ml + 'ml');
+    if (event.duration_sec != null || event.duration_min != null) parts.push(formatSeconds(getDurationSec(event)));
+    if (event.stool || event.stool_amount) parts.push('💩' + (event.stool_amount ? event.stool_amount : ''));
+    if (event.note && event.type !== 'weight') parts.push(event.note);
+    return parts.join(' / ');
   }
 
   return {

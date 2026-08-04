@@ -8,27 +8,26 @@ var UISettings = (function () {
       Sync.listFamilyMembers(),
       DB.getMeta('authUserId')
     ]).then(function (results) {
-      var babies = results[0];
+      var babies = results[0] || [];
       var buttons = results[1] || DEFAULT_HOME_BUTTONS;
-      var familyCode = results[2];
+      var familyCode = results[2] || null;
       var pendingRequests = results[3] || [];
       var memberState = results[4] || { success: true, members: [] };
       var authUserId = results[5] || null;
       var members = memberState.members || [];
-      var currentMember = members.filter(function (member) {
-        return !!(authUserId && member.auth_user === authUserId);
-      })[0] || null;
+      var currentMember = findCurrentMember(members, authUserId);
       var isCreator = !!(currentMember && currentMember.is_creator);
+
       var html = '<div class="log-header"><h2 style="font-size:1.2rem">设置</h2></div>';
 
       html += '<div class="settings-section-title">宝宝档案</div>';
       html += '<div class="settings-group">';
       babies.forEach(function (baby) {
-        html += '<div class="baby-card" onclick="UISettings.editBaby(\'' + baby.id + '\')" style="cursor:pointer">';
-        html += '<div class="baby-avatar">' + (baby.avatar || '👶') + '</div>';
-        html += '<div class="baby-info" style="flex:1"><div class="bi-name">' + (baby.name || '宝宝') + '</div>';
-        html += '<div class="bi-birthday">' + formatBabySubtitle(baby) + '</div></div>';
-        html += '<span class="si-arrow">›</span></div>';
+        html += '<div class="baby-card" onclick="UISettings.editBaby(\'' + escapeJs(baby.id) + '\')" style="cursor:pointer">';
+        html += '<div class="baby-avatar">' + escapeHtml(baby.avatar || '👶') + '</div>';
+        html += '<div class="baby-info" style="flex:1"><div class="bi-name">' + escapeHtml(baby.name || '宝宝') + '</div>';
+        html += '<div class="bi-birthday">' + escapeHtml(formatBabySubtitle(baby)) + '</div></div>';
+        html += '<span class="si-arrow">→</span></div>';
       });
       html += '<div class="settings-item" onclick="UISettings.addBaby()" style="cursor:pointer;justify-content:center;color:var(--primary);font-weight:600">+ 添加宝宝</div>';
       html += '</div>';
@@ -39,7 +38,7 @@ var UISettings = (function () {
         var eventType = EVENT_TYPES[key];
         var active = buttons.indexOf(key) >= 0;
         html += '<div class="settings-item">';
-        html += '<div class="si-label">' + eventType.icon + ' ' + eventType.label + '</div>';
+        html += '<div class="si-label">' + escapeHtml(eventType.icon + ' ' + eventType.label) + '</div>';
         html += '<label class="switch"><input type="checkbox" ' + (active ? 'checked' : '') + ' onchange="UISettings.toggleButton(\'' + key + '\', this.checked)"><span class="slider"></span></label>';
         html += '</div>';
       });
@@ -50,7 +49,7 @@ var UISettings = (function () {
       html += renderSyncStatusBlock();
       html += '<div class="settings-item" onclick="UISettings.manualSync()" style="cursor:pointer;color:var(--primary);font-weight:600">立即同步</div>';
       if (familyCode) {
-        html += '<div class="settings-item"><div class="si-label">家庭码</div><div class="si-value" style="font-weight:700;letter-spacing:2px">' + familyCode + '</div></div>';
+        html += '<div class="settings-item"><div class="si-label">家庭码</div><div class="si-value" style="font-weight:700;letter-spacing:2px">' + escapeHtml(familyCode) + '</div></div>';
         html += '<div class="settings-item" onclick="UISettings.copyFamilyCode()" style="cursor:pointer;color:var(--primary);font-weight:600">复制家庭码</div>';
       } else {
         html += '<div class="settings-item" onclick="UISettings.createFamilyLocal()" style="cursor:pointer;color:var(--primary);font-weight:600">生成家庭码</div>';
@@ -65,7 +64,7 @@ var UISettings = (function () {
           html += '<div class="settings-item" style="display:block"><div class="si-label">当前为本地模式</div><div class="ti-detail" style="margin-top:6px">成员管理需要连接 Supabase 后使用。</div></div>';
         } else if (!memberState.success) {
           html += '<div class="settings-item" style="display:block"><div class="si-label">成员列表加载失败</div><div class="ti-detail" style="margin-top:6px">' + escapeHtml(memberState.error || '请稍后重试') + '</div></div>';
-        } else if (members.length === 0) {
+        } else if (!members.length) {
           html += '<div class="settings-item" style="display:block"><div class="si-label">暂无成员</div></div>';
         } else {
           members.forEach(function (member) {
@@ -73,11 +72,12 @@ var UISettings = (function () {
           });
         }
         html += '</div>';
+
         if (currentMember) {
-          html += '<div class="settings-section-title">瀹跺涵鎿嶄綔</div>';
+          html += '<div class="settings-section-title">家庭操作</div>';
           html += '<div class="settings-group">';
-          html += '<div class="settings-item" onclick="UISettings.openEditMember(\'' + currentMember.id + '\')" style="cursor:pointer"><div class="si-label">淇敼鎴戠殑绉板懠</div><span class="si-arrow">鈥?/span></div>';
-          html += '<div class="settings-item" onclick="UISettings.leaveFamily()" style="cursor:pointer;color:var(--danger);font-weight:600">閫€鍑哄綋鍓嶅搴?/div>';
+          html += '<div class="settings-item" onclick="UISettings.openEditMember(\'' + escapeJs(currentMember.id) + '\')" style="cursor:pointer"><div class="si-label">修改我的称呼</div><span class="si-arrow">→</span></div>';
+          html += '<div class="settings-item" onclick="UISettings.leaveFamily()" style="cursor:pointer;color:var(--danger);font-weight:600">退出当前家庭（谨慎）</div>';
           html += '</div>';
         }
       }
@@ -90,12 +90,13 @@ var UISettings = (function () {
           html += '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">';
           html += '<div>';
           html += '<div class="si-label" style="font-weight:700">' + escapeHtml(request.display_name || request.role || '新成员') + '</div>';
-          html += '<div class="ti-detail" style="margin-top:6px">申请角色：' + escapeHtml(request.role || '未填写') + '</div>';
-          html += '<div class="ti-detail">申请时间：' + formatDateTime(request.created_at) + '</div>';
+          html += '<div class="ti-detail" style="margin-top:6px">称呼：' + escapeHtml(request.role || '未填写') + '</div>';
+          html += '<div class="ti-detail">账号：' + escapeHtml(formatJoinRequesterAccount(request)) + '</div>';
+          html += '<div class="ti-detail">申请时间：' + escapeHtml(formatDateTime(request.created_at)) + '</div>';
           html += '</div>';
           html += '<div style="display:flex;gap:8px;flex-shrink:0">';
-          html += '<button class="btn-secondary" style="padding:8px 12px" onclick="UISettings.reviewJoinRequest(\'' + request.id + '\', \'reject\')">拒绝</button>';
-          html += '<button class="btn-primary" style="padding:8px 12px" onclick="UISettings.reviewJoinRequest(\'' + request.id + '\', \'approve\')">同意</button>';
+          html += '<button class="btn-secondary" style="padding:8px 12px" onclick="UISettings.reviewJoinRequest(\'' + escapeJs(request.id) + '\', \'reject\')">拒绝</button>';
+          html += '<button class="btn-primary" style="padding:8px 12px" onclick="UISettings.reviewJoinRequest(\'' + escapeJs(request.id) + '\', \'approve\')">同意</button>';
           html += '</div></div></div>';
         });
         html += '</div>';
@@ -103,8 +104,8 @@ var UISettings = (function () {
 
       html += '<div class="settings-section-title">备份</div>';
       html += '<div class="settings-group">';
-      html += '<div class="settings-item" onclick="UISettings.exportData()" style="cursor:pointer"><div class="si-label">导出全部数据</div><span class="si-arrow">›</span></div>';
-      html += '<div class="settings-item" onclick="document.getElementById(\'import-file\').click()" style="cursor:pointer"><div class="si-label">导入备份</div><span class="si-arrow">›</span></div>';
+      html += '<div class="settings-item" onclick="UISettings.exportData()" style="cursor:pointer"><div class="si-label">导出全部数据</div><span class="si-arrow">→</span></div>';
+      html += '<div class="settings-item" onclick="document.getElementById(\'import-file\').click()" style="cursor:pointer"><div class="si-label">导入备份</div><span class="si-arrow">→</span></div>';
       html += '</div>';
       html += '<input type="file" id="import-file" accept=".json" style="display:none" onchange="UISettings.importData(event)">';
 
@@ -119,6 +120,7 @@ var UISettings = (function () {
     ]).then(function (meta) {
       var pendingJoinCode = meta[0];
       var pendingJoinRequestedAt = meta[1];
+
       if (pendingJoinCode && Sync.isConfigured()) {
         return Sync.getJoinRequestStatus(pendingJoinCode).then(function (state) {
           if (state && state.success && state.status === 'approved' && state.request) {
@@ -129,6 +131,7 @@ var UISettings = (function () {
           return null;
         });
       }
+
       renderWelcomeContent(container, pendingJoinCode, pendingJoinRequestedAt, null);
       return null;
     });
@@ -136,7 +139,7 @@ var UISettings = (function () {
 
   function renderWelcomeContent(container, pendingJoinCode, pendingJoinRequestedAt, joinState) {
     var html = '<div class="welcome-page compact">';
-    html += '<div class="welcome-hero compact"><div class="welcome-badge">🍼 宝宝照护记录</div><h1>先建家庭，再开始记录</h1><p>创建新家庭，或用家庭码加入同一份共享记录。</p></div>';
+    html += '<div class="welcome-hero compact"><div class="welcome-badge">👶 宝宝照护记录</div><h1>先建家庭，再开始记录</h1><p>创建新家庭，或用家庭码加入同一份共享记录。</p></div>';
 
     if (pendingJoinCode) {
       html += renderPendingJoinBlock(pendingJoinCode, pendingJoinRequestedAt, joinState);
@@ -159,7 +162,7 @@ var UISettings = (function () {
 
     html += '<div class="welcome-section compact">';
     html += '<div class="welcome-title">加入已有家庭</div>';
-    html += '<div class="welcome-desc">输入家庭码后先进入待审核，需由家庭创建者同意后才能加入。</div>';
+    html += '<div class="welcome-desc">输入家庭码后先进入待审核，需要由家庭创建者同意后才能加入。</div>';
     html += '<div class="form-row compact-row join-row">';
     html += '<div class="form-group"><label class="form-label">6 位家庭码</label><input type="text" class="form-input welcome-code" id="welcome-join-code" maxlength="6" placeholder="如：123456" value="' + escapeAttr(pendingJoinCode || '') + '"></div>';
     html += '<div class="form-group join-btn-wrap"><label class="form-label">&nbsp;</label><button class="btn-primary join-btn" onclick="UISettings.joinFamilyFromWelcome()">提交申请</button></div>';
@@ -178,6 +181,7 @@ var UISettings = (function () {
     var status = joinState && joinState.status ? joinState.status : 'pending';
     var title = '入家申请处理中';
     var detail = '家庭码 ' + escapeHtml(pendingJoinCode) + ' 已提交，等待家庭创建者审核。';
+
     if (status === 'rejected') {
       title = '入家申请已被拒绝';
       detail = '你可以核对家庭码后重新提交申请。';
@@ -214,48 +218,32 @@ var UISettings = (function () {
     return html;
   }
 
-  function renderMemberItem(member) {
+  function renderMemberItem(member, authUserId, isCreator) {
     var name = member.display_name || member.role || '未命名成员';
     var role = member.role || '未设置';
     var creatorTag = member.is_creator ? '<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:var(--primary-dark);font-size:.72rem;font-weight:700">创建者</span>' : '';
-    var actionHtml = member.is_creator
-      ? '<div class="ti-detail" style="margin-top:6px">家庭创建者不可移除</div>'
-      : '<button class="btn-danger" style="margin-top:8px;padding:0;text-align:right" onclick="UISettings.removeMember(\'' + member.id + '\')">移除成员</button>';
+    var canEdit = !!(isCreator || (authUserId && member.auth_user === authUserId));
+    var actionHtml = '';
+
+    if (canEdit) {
+      actionHtml += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.openEditMember(\'' + escapeJs(member.id) + '\')">修改称呼</button>';
+    }
+    if (isCreator && !member.is_creator) {
+      actionHtml += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.transferCreator(\'' + escapeJs(member.id) + '\')">转让创建者</button>';
+      actionHtml += '<button class="btn-danger" style="margin-top:8px;padding:0;text-align:right" onclick="UISettings.removeMember(\'' + escapeJs(member.id) + '\')">移除成员</button>';
+    }
+    if (member.is_creator) {
+      actionHtml += '<div class="ti-detail" style="margin-top:6px">创建者不可移除，如需退出请先转让。</div>';
+    }
 
     return '<div class="settings-item" style="display:block">'
       + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">'
       + '<div style="flex:1">'
       + '<div class="si-label" style="font-weight:700">' + escapeHtml(name) + creatorTag + '</div>'
-      + '<div class="ti-detail" style="margin-top:6px">称呼：' + escapeHtml(role) + '</div>'
+      + '<div class="ti-detail" style="margin-top:6px">角色：' + escapeHtml(role) + '</div>'
       + '<div class="ti-detail">加入时间：' + formatDateTime(member.created_at) + '</div>'
       + actionHtml
       + '</div></div></div>';
-  }
-
-  function pickCreateRole(role, btn) {
-    document.getElementById('welcome-create-role').value = role;
-    toggleRoleChip(btn, '.welcome-section:first-of-type .role-chip');
-  }
-
-  function pickRole(role, btn) {
-    document.getElementById('welcome-role').value = role;
-    toggleRoleChip(btn, '.welcome-section:last-of-type .role-chip');
-  }
-
-  function inputCreateRole(input) {
-    if (!input) return;
-    toggleRoleChip(null, '.welcome-section:first-of-type .role-chip');
-  }
-
-  function inputJoinRole(input) {
-    if (!input) return;
-    toggleRoleChip(null, '.welcome-section:last-of-type .role-chip');
-  }
-
-  function toggleRoleChip(btn, selector) {
-    var chips = document.querySelectorAll(selector);
-    chips.forEach(function (chip) { chip.classList.remove('active'); });
-    if (btn) btn.classList.add('active');
   }
 
   function renderSyncStatusBlock() {
@@ -265,10 +253,15 @@ var UISettings = (function () {
 
     if (status.mode === 'cloud-ready') {
       modeLabel = status.syncing ? '正在同步' : '云端已连接';
-      detail = '已连接 Supabase，可创建家庭、提交加入申请并在多台设备间同步。';
+      detail = '已连接 Supabase，可以创建家庭、提交加入申请，并在多设备间同步。';
+    } else if (status.mode === 'cloud-pending-auth') {
+      modeLabel = '等待登录';
+      detail = '当前项目已经连接 Supabase，但你还没有完成登录。登录后才能恢复家庭、提交加入申请和同步数据。';
     } else if (status.mode === 'cloud-pending') {
       modeLabel = '云端待就绪';
-      detail = status.lastError ? ('已配置 Supabase，但当前连接失败：' + status.lastError) : '已检测到 Supabase 配置，正在等待连接。';
+      detail = status.lastError
+        ? ('已配置 Supabase，但当前连接失败：' + status.lastError)
+        : '已检测到 Supabase 配置，正在等待连接。';
     }
 
     if (status.lastSync) {
@@ -280,8 +273,8 @@ var UISettings = (function () {
 
     return '<div class="settings-item" style="display:block">'
       + '<div class="si-label" style="margin-bottom:6px">同步状态</div>'
-      + '<div class="si-value" style="font-weight:700;color:var(--text)">' + modeLabel + '</div>'
-      + '<div class="ti-detail" style="margin-top:6px">' + detail + '</div>'
+      + '<div class="si-value" style="font-weight:700;color:var(--text)">' + escapeHtml(modeLabel) + '</div>'
+      + '<div class="ti-detail" style="margin-top:6px">' + escapeHtml(detail) + '</div>'
       + '</div>';
   }
 
@@ -313,7 +306,9 @@ var UISettings = (function () {
       });
     }).then(function (result) {
       if (!result) return;
-      return Sync.sync({ silent: true }).catch(function () {}).then(function () {
+      return Sync.sync({ silent: true }).catch(function () {
+        return null;
+      }).then(function () {
         showFamilyCodeSuccess(result.code);
       });
     });
@@ -358,17 +353,15 @@ var UISettings = (function () {
   function finishApprovedJoin(request) {
     return Sync.activateApprovedJoin(request).then(function (result) {
       if (!result || !result.success) {
-        renderJoinError(result && result.error ? result.error : '同步家庭数据失败，请重试');
+        App.toast(result && result.error ? result.error : '进入家庭失败');
         return null;
       }
       return DB.getBabies().then(function (babies) {
-        if (babies.length > 0) {
+        if ((babies || []).length > 0) {
           return DB.setMeta('currentBabyId', babies[0].id).then(function () {
-            return DB.setMeta('onboardingCompleted', true);
-          }).then(function () {
             App.navigate('today');
             App.renderPage();
-            App.toast('审核已通过，已加入家庭');
+            App.toast('已进入原家庭');
           });
         }
         openBabyCreateAfterJoin();
@@ -378,14 +371,35 @@ var UISettings = (function () {
   }
 
   function checkJoinRequestStatus() {
-    App.toast('正在刷新审核状态');
-    App.renderPage();
+    DB.getMeta('pendingJoinCode').then(function (pendingJoinCode) {
+      if (!pendingJoinCode) {
+        App.toast('当前没有待查询的申请');
+        return null;
+      }
+      return Sync.getJoinRequestStatus(pendingJoinCode).then(function (state) {
+        if (!state || !state.success) {
+          App.toast(state && state.error ? state.error : '刷新状态失败');
+          return null;
+        }
+        if (state.status === 'approved' && state.request) {
+          App.toast('申请已通过，正在进入家庭');
+          return finishApprovedJoin(state.request);
+        }
+        if (state.status === 'rejected') App.toast('申请已被拒绝');
+        else if (state.status === 'pending') App.toast('申请仍在审核中');
+        else App.toast('暂未查到申请记录');
+        App.renderPage();
+        return null;
+      });
+    });
   }
 
   function clearPendingJoinRequest() {
-    DB.setMeta('pendingJoinCode', null).then(function () {
-      return DB.setMeta('pendingJoinRequestedAt', null);
-    }).then(function () {
+    Promise.all([
+      DB.setMeta('pendingJoinCode', null),
+      DB.setMeta('pendingJoinRequestedAt', null)
+    ]).then(function () {
+      App.toast('已清除申请记录');
       App.renderPage();
     });
   }
@@ -396,49 +410,20 @@ var UISettings = (function () {
         App.toast(result && result.error ? result.error : '审核失败');
         return;
       }
-      App.toast(action === 'approve' ? '已同意加入' : '已拒绝申请');
+      App.toast(action === 'approve' ? '已同意加入申请' : '已拒绝加入申请');
       App.renderPage();
     });
   }
 
   function removeMember(memberId) {
-    if (!confirm('确认移除这个成员吗？移除后对方将无法继续同步这个家庭的数据。')) return;
     Sync.removeFamilyMember(memberId).then(function (result) {
       if (!result || !result.success) {
         App.toast(result && result.error ? result.error : '移除成员失败');
         return;
       }
-      App.toast('成员已移除');
+      App.toast('已移除成员');
       App.renderPage();
     });
-  }
-
-  function renderMemberItem(member, authUserId, isCreator) {
-    var name = member.display_name || member.role || '成员';
-    var role = member.role || '未设置';
-    var creatorTag = member.is_creator ? '<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:var(--primary-dark);font-size:.72rem;font-weight:700">创建者</span>' : '';
-    var canEdit = !!(isCreator || (authUserId && member.auth_user === authUserId));
-    var actionHtml = '';
-
-    if (canEdit) {
-      actionHtml += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.openEditMember(\'' + member.id + '\')">修改称呼</button>';
-    }
-    if (isCreator && !member.is_creator) {
-      actionHtml += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.transferCreator(\'' + member.id + '\')">转让创建者</button>';
-      actionHtml += '<button class="btn-danger" style="margin-top:8px;padding:0;text-align:right" onclick="UISettings.removeMember(\'' + member.id + '\')">移除成员</button>';
-    }
-    if (member.is_creator) {
-      actionHtml += '<div class="ti-detail" style="margin-top:6px">创建者不可移除，需先转让。</div>';
-    }
-
-    return '<div class="settings-item" style="display:block">'
-      + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">'
-      + '<div style="flex:1">'
-      + '<div class="si-label" style="font-weight:700">' + escapeHtml(name) + creatorTag + '</div>'
-      + '<div class="ti-detail" style="margin-top:6px">称呼：' + escapeHtml(role) + '</div>'
-      + '<div class="ti-detail">加入时间：' + formatDateTime(member.created_at) + '</div>'
-      + actionHtml
-      + '</div></div></div>';
   }
 
   function openEditMember(memberId) {
@@ -452,8 +437,8 @@ var UISettings = (function () {
       var html = '<div class="modal-overlay" onclick="if(event.target===this)UIToday.closeModal()"><div class="modal-sheet">';
       html += '<div class="modal-handle"></div><div class="modal-title">修改成员称呼</div>';
       html += '<div class="form-group"><label class="form-label">显示称呼</label><input type="text" class="form-input" id="member-display-name" value="' + escapeAttr(member.display_name || member.role || '') + '" placeholder="如：奶奶"></div>';
-      html += '<div class="form-group"><label class="form-label">角色</label><input type="text" class="form-input" id="member-role-name" value="' + escapeAttr(member.role || '') + '" placeholder="如：parent"></div>';
-      html += '<button class="btn-primary" onclick="UISettings.saveMemberProfile(\'' + member.id + '\', \'' + escapeJs(member.auth_user || '') + '\')">保存</button>';
+      html += '<div class="form-group"><label class="form-label">角色</label><input type="text" class="form-input" id="member-role-name" value="' + escapeAttr(member.role || '') + '" placeholder="如：妈妈"></div>';
+      html += '<button class="btn-primary" onclick="UISettings.saveMemberProfile(\'' + escapeJs(member.id) + '\', \'' + escapeJs(member.auth_user || '') + '\')">保存</button>';
       html += '</div></div>';
       document.body.insertAdjacentHTML('beforeend', html);
     });
@@ -520,78 +505,6 @@ var UISettings = (function () {
     });
   }
 
-  function renderMemberItem(member, authUserId, isCreator) {
-    var name = member.display_name || member.role || '成员';
-    var creatorTag = member.is_creator ? '<span style="display:inline-block;margin-left:8px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:var(--primary-dark);font-size:.72rem;font-weight:700">创建者</span>' : '';
-    var canEdit = !!(isCreator || (authUserId && member.auth_user === authUserId));
-    var actionHtml = '';
-
-    if (canEdit) {
-      actionHtml += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.openEditMember(\'' + member.id + '\')">修改称呼</button>';
-    }
-    if (isCreator && !member.is_creator) {
-      actionHtml += '<button class="btn-secondary" style="margin-top:8px;padding:8px 12px" onclick="UISettings.transferCreator(\'' + member.id + '\')">转让创建者</button>';
-      actionHtml += '<button class="btn-danger" style="margin-top:8px;padding:0;text-align:right" onclick="UISettings.removeMember(\'' + member.id + '\')">移除成员</button>';
-    }
-    if (member.is_creator) {
-      actionHtml += '<div class="ti-detail" style="margin-top:6px">创建者不可移除，需先转让。</div>';
-    }
-
-    return '<div class="settings-item" style="display:block">'
-      + '<div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">'
-      + '<div style="flex:1">'
-      + '<div class="si-label" style="font-weight:700">' + escapeHtml(name) + creatorTag + '</div>'
-      + '<div class="ti-detail">加入时间：' + formatDateTime(member.created_at) + '</div>'
-      + actionHtml
-      + '</div></div></div>';
-  }
-
-  function openEditMember(memberId) {
-    Sync.listFamilyMembers().then(function (result) {
-      var members = result && result.members ? result.members : [];
-      var member = members.filter(function (item) { return item.id === memberId; })[0] || null;
-      if (!member) {
-        App.toast('未找到成员');
-        return;
-      }
-      var html = '<div class="modal-overlay" onclick="if(event.target===this)UIToday.closeModal()"><div class="modal-sheet">';
-      html += '<div class="modal-handle"></div><div class="modal-title">修改成员称呼</div>';
-      html += '<div class="form-group"><label class="form-label">称呼</label><input type="text" class="form-input" id="member-display-name" value="' + escapeAttr(member.display_name || member.role || '') + '" placeholder="如：奶奶"></div>';
-      html += '<button class="btn-primary" onclick="UISettings.saveMemberProfile(\'' + member.id + '\', \'' + escapeJs(member.auth_user || '') + '\')">保存</button>';
-      html += '</div></div>';
-      document.body.insertAdjacentHTML('beforeend', html);
-    });
-  }
-
-  function saveMemberProfile(memberId, memberAuthUser) {
-    var title = (document.getElementById('member-display-name').value || '').trim();
-    if (!title) {
-      App.toast('请填写称呼');
-      return;
-    }
-    Sync.updateFamilyMember(memberId, {
-      displayName: title,
-      role: title
-    }).then(function (result) {
-      if (!result || !result.success) {
-        App.toast(result && result.error ? result.error : '修改失败');
-        return;
-      }
-      return DB.getMeta('authUserId').then(function (authUserId) {
-        if (authUserId && memberAuthUser && authUserId === memberAuthUser) {
-          return DB.setMeta('memberDisplayName', result.member && result.member.display_name ? result.member.display_name : title).then(function () {
-            return DB.setMeta('memberRole', result.member && result.member.role ? result.member.role : title);
-          });
-        }
-        return null;
-      }).then(function () {
-        UIToday.closeModal();
-        App.toast('修改成功');
-        App.renderPage();
-      });
-    });
-  }
-
   function renderJoinError(msg) {
     var html = '<div class="welcome-error">' + escapeHtml(msg) + '</div>';
     html += '<div class="welcome-error-actions">';
@@ -636,7 +549,9 @@ var UISettings = (function () {
         return DB.setMeta('onboardingCompleted', true);
       });
     }).then(function () {
-      return Sync.sync({ silent: true }).catch(function () {});
+      return Sync.sync({ silent: true }).catch(function () {
+        return null;
+      });
     }).then(function () {
       UIToday.closeModal();
       App.navigate('today');
@@ -648,7 +563,7 @@ var UISettings = (function () {
   function showFamilyCodeSuccess(code) {
     var html = '<div class="modal-overlay" onclick="if(event.target===this)return"><div class="modal-sheet">';
     html += '<div class="modal-handle"></div><div class="modal-title">创建成功</div>';
-    html += '<div class="family-code-box">' + code + '</div>';
+    html += '<div class="family-code-box">' + escapeHtml(code) + '</div>';
     html += '<div class="family-code-tip">把家庭码发给另一台手机，对方提交申请后，你将在设置页审核。</div>';
     html += '<button class="btn-primary" onclick="UISettings.copyFamilyCodeAndEnter()">复制家庭码并进入今日页</button>';
     html += '<button class="btn-secondary" style="margin-top:8px" onclick="UISettings.enterTodayAfterOnboarding()">直接进入今日页</button>';
@@ -658,7 +573,9 @@ var UISettings = (function () {
 
   function copyFamilyCodeAndEnter() {
     DB.getMeta('familyCode').then(function (code) {
-      if (navigator.clipboard && code) navigator.clipboard.writeText(code).catch(function () {});
+      if (navigator.clipboard && code) navigator.clipboard.writeText(code).catch(function () {
+        return null;
+      });
       enterTodayAfterOnboarding();
     });
   }
@@ -683,15 +600,15 @@ var UISettings = (function () {
   function showBabyForm(baby) {
     var isEdit = !!baby;
     var current = baby || { name: '', birthday: '', avatar: '👶' };
-    var avatars = ['👶', '🧒', '👧', '🍼', '🐻', '🌈', '⭐'];
+    var avatars = ['👶', '🍼', '👧', '👦', '🐥', '🌼', '🌙'];
     var html = '<div class="modal-overlay" onclick="if(event.target===this)UIToday.closeModal()"><div class="modal-sheet">';
     html += '<div class="modal-handle"></div><div class="modal-title">' + (isEdit ? '编辑宝宝' : '添加宝宝') + '</div>';
     html += '<div class="form-group"><label class="form-label">头像</label><div style="display:flex;gap:8px;flex-wrap:wrap">';
     avatars.forEach(function (avatar) {
       var selected = current.avatar === avatar ? 'border:2px solid var(--primary);background:var(--c-sleep)' : '';
-      html += '<button onclick="document.getElementById(\'baby-avatar\').value=\'' + avatar + '\';UISettings._selectAvatar(this)" style="font-size:1.5rem;padding:8px;border-radius:10px;' + selected + '" data-avatar="' + avatar + '">' + avatar + '</button>';
+      html += '<button type="button" onclick="document.getElementById(\'baby-avatar\').value=\'' + avatar + '\';UISettings._selectAvatar(this)" style="font-size:1.5rem;padding:8px;border-radius:10px;' + selected + '" data-avatar="' + avatar + '">' + avatar + '</button>';
     });
-    html += '</div><input type="hidden" id="baby-avatar" value="' + current.avatar + '"></div>';
+    html += '</div><input type="hidden" id="baby-avatar" value="' + escapeAttr(current.avatar) + '"></div>';
     html += '<div class="form-group"><label class="form-label">小名</label><input type="text" class="form-input" id="baby-name" value="' + escapeAttr(current.name || '') + '" placeholder="如：豆豆"></div>';
     html += '<div class="form-group"><label class="form-label">出生日期</label><input type="date" class="form-input" id="baby-birthday" value="' + escapeAttr(current.birthday || '') + '"></div>';
     html += '<button class="btn-primary" onclick="UISettings.saveBaby(' + (isEdit ? '\'' + current.id + '\'' : 'null') + ')">保存</button>';
@@ -702,7 +619,7 @@ var UISettings = (function () {
 
   function _selectAvatar(btn) {
     var siblings = btn.parentElement.querySelectorAll('button');
-    siblings.forEach(function (item) {
+    Array.prototype.forEach.call(siblings, function (item) {
       item.style.border = '1px solid transparent';
       item.style.background = '';
     });
@@ -789,7 +706,9 @@ var UISettings = (function () {
   function copyFamilyCode() {
     DB.getMeta('familyCode').then(function (code) {
       if (!code) return;
-      if (navigator.clipboard) navigator.clipboard.writeText(code).catch(function () {});
+      if (navigator.clipboard) navigator.clipboard.writeText(code).catch(function () {
+        return null;
+      });
       App.toast('家庭码已复制');
     });
   }
@@ -846,12 +765,53 @@ var UISettings = (function () {
     event.target.value = '';
   }
 
+  function findCurrentMember(members, authUserId) {
+    return (members || []).filter(function (member) {
+      return !!(authUserId && member.auth_user === authUserId);
+    })[0] || null;
+  }
+
+  function formatJoinRequesterAccount(request) {
+    var email = request && request.requester_email ? String(request.requester_email).trim() : '';
+    if (email) return email;
+    var account = request && request.requester_user ? String(request.requester_user) : '';
+    if (!account) return '未提供';
+    if (account.length <= 12) return account;
+    return account.slice(0, 8) + '...' + account.slice(-6);
+  }
+
   function formatBabySubtitle(baby) {
     var parts = [];
-    if (baby.birthday) parts.push(baby.birthday);
-    var days = Calc.daysSinceBirth(baby.birthday);
+    if (baby && baby.birthday) parts.push(baby.birthday);
+    var days = Calc.daysSinceBirth(baby && baby.birthday);
     if (days != null) parts.push('出生 ' + days + ' 天');
     return parts.join(' · ') || '未设置';
+  }
+
+  function pickCreateRole(role, btn) {
+    document.getElementById('welcome-create-role').value = role;
+    toggleRoleChip(btn, '.welcome-section:first-of-type .role-chip');
+  }
+
+  function pickRole(role, btn) {
+    document.getElementById('welcome-role').value = role;
+    toggleRoleChip(btn, '.welcome-section:last-of-type .role-chip');
+  }
+
+  function inputCreateRole() {
+    toggleRoleChip(null, '.welcome-section:first-of-type .role-chip');
+  }
+
+  function inputJoinRole() {
+    toggleRoleChip(null, '.welcome-section:last-of-type .role-chip');
+  }
+
+  function toggleRoleChip(btn, selector) {
+    var chips = document.querySelectorAll(selector);
+    Array.prototype.forEach.call(chips, function (chip) {
+      chip.classList.remove('active');
+    });
+    if (btn) btn.classList.add('active');
   }
 
   function formatDateTime(value) {

@@ -1,4 +1,4 @@
-var UISettings = (function (BaseUISettings) {
+var UISettings = (function (baseUISettings) {
   var pendingConfirmAction = null;
   var pendingAfterResult = null;
 
@@ -310,8 +310,8 @@ var UISettings = (function (BaseUISettings) {
   }
 
   var next = {};
-  Object.keys(BaseUISettings).forEach(function (key) {
-    next[key] = BaseUISettings[key];
+  Object.keys(baseUISettings).forEach(function (key) {
+    next[key] = baseUISettings[key];
   });
   next.signOut = signOut;
   next.leaveFamily = leaveFamily;

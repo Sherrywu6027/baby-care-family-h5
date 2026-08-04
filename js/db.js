@@ -172,14 +172,23 @@ var DB = (function () {
     return softDeleteEvent(id);
   }
 
+  function getEventCreatedSortTime(event) {
+    if (!event) return 0;
+    return new Date(event.created_at || event.updated_at || event.start_time || 0).getTime() || 0;
+  }
+
   function getEvent(id) {
     return req2promise(tx('events', 'readonly').get(id));
   }
 
   function getEventsByDay(babyId, dateStr) {
     return new Promise(function (resolve, reject) {
-      var dayStart = new Date(dateStr + 'T00:00:00');
-      var dayEnd = new Date(dateStr + 'T23:59:59.999');
+      var range = window.TimeUtil
+        ? TimeUtil.getChinaDayRange(dateStr)
+        : {
+            startMs: new Date(dateStr + 'T00:00:00').getTime(),
+            endMs: new Date(dateStr + 'T23:59:59.999').getTime()
+          };
       var idx = tx('events', 'readonly').index('baby_id');
       var results = [];
       var req = idx.openCursor(IDBKeyRange.only(babyId));
@@ -187,11 +196,11 @@ var DB = (function () {
         var cursor = e.target.result;
         if (cursor) {
           var record = cursor.value;
-          var st = new Date(record.start_time);
-          if (!record.deleted_at && st >= dayStart && st <= dayEnd) results.push(record);
+          var st = new Date(record.start_time).getTime();
+          if (!record.deleted_at && st >= range.startMs && st <= range.endMs) results.push(record);
           cursor.continue();
         } else {
-          results.sort(function (a, b) { return new Date(b.start_time) - new Date(a.start_time); });
+          results.sort(function (a, b) { return getEventCreatedSortTime(b) - getEventCreatedSortTime(a); });
           resolve(results);
         }
       };
@@ -210,7 +219,7 @@ var DB = (function () {
           if (!cursor.value.deleted_at) results.push(cursor.value);
           cursor.continue();
         } else {
-          results.sort(function (a, b) { return new Date(b.start_time) - new Date(a.start_time); });
+          results.sort(function (a, b) { return getEventCreatedSortTime(b) - getEventCreatedSortTime(a); });
           resolve(results);
         }
       };
